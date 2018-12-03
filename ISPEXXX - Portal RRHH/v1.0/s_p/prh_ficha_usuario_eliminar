@@ -1,0 +1,46 @@
+USE [Inland]
+GO
+/****** Object:  StoredProcedure [prh].[ficha_usuario_eliminar]    Script Date: 3/12/2018 10:01:38 ******/
+SET ANSI_NULLS ON
+GO
+SET QUOTED_IDENTIFIER ON
+GO
+ALTER PROC [prh].[ficha_usuario_eliminar] (
+	@Usuario_id INT,
+	@Admin_id INT,
+	@Ficha_laboral_id INT,
+	@estado INT OUT,
+	@mensaje varchar(max) OUT
+)
+AS
+
+SET NOCOUNT ON 
+
+	BEGIN TRY
+
+		UPDATE seg.usuario
+		SET
+			estado = '0',
+    		fecha_modificacion = CURRENT_TIMESTAMP,
+    		usuario_modificacion_id = @Admin_id
+		WHERE
+			usuario_id = @Usuario_id
+
+		UPDATE prh.ficha_laboral
+		SET
+			estado = '3',
+    		fecha_modificacion = CURRENT_TIMESTAMP,
+    		usuario_modificacion_id = @Admin_id
+		WHERE
+			ficha_laboral_id = @Ficha_laboral_id
+		
+		SET @estado = 1;
+		SET @mensaje = 'Usuario eliminado correctamente';
+
+	END TRY
+	BEGIN CATCH
+
+		SET @estado = 0;
+		SET @mensaje = ERROR_MESSAGE();
+		
+	END CATCH

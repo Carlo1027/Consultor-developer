@@ -1,0 +1,74 @@
+USE [Inland]
+GO
+/****** Object:  StoredProcedure [prh].[ficha_laboral_adicional_I_editar_by_admin]    Script Date: 3/12/2018 09:50:17 ******/
+SET ANSI_NULLS ON
+GO
+SET QUOTED_IDENTIFIER ON
+GO
+ALTER PROC [prh].[ficha_laboral_adicional_I_editar_by_admin] (
+	@Usuario_id INT,
+	@Ficha_laboral_id INT,
+    @Ficha_laboral_adicional_id INT,
+
+    @unicoAportar VARCHAR(MAX),
+    @otroIngreso VARCHAR(MAX),
+	@enfermedad VARCHAR(MAX),
+	@tratamientoDiscapacidad VARCHAR(MAX),
+	@situacionVivienda INT,
+	@serviciosAgua CHAR(1),
+	@serviciosLuz CHAR(1),
+	@serviciosCable CHAR(1),
+	@serviciosDesague CHAR(1),
+	@serviciosInternet CHAR(1),
+	@serviciosOtros VARCHAR(MAX),
+	@constitucionFamiliar INT,
+	@problemasFrecuentes INT,
+	@hijosUniversidad INT,
+	@hijosInstituto INT,
+	@hijosColegio INT,
+	@hijosOtro INT,
+	@centroEstudios INT,
+	@estado INT OUT,
+	@mensaje varchar(max) OUT 
+)
+AS
+
+SET NOCOUNT ON 
+
+BEGIN TRY
+
+	UPDATE prh.ficha_laboral_adicional
+	SET
+		unico_aportar=@unicoAportar,
+		otro_ingreso=@otroIngreso,
+		enfermedad=@enfermedad,
+		tratamiendo_discapacidad=@tratamientoDiscapacidad,
+		situacion_vivienda=@situacionVivienda,
+		servicios_agua=@serviciosAgua,
+		servicios_luz=@serviciosLuz,
+		servicios_cable=@serviciosCable,
+		servicios_desague=@serviciosDesague,
+		servicios_internet=@serviciosInternet,
+		servicios_otros=@serviciosOtros,
+		constitucion_familiar=@constitucionFamiliar,
+		problemas_frecuentes=@problemasFrecuentes,
+		hijos_universidad=@hijosUniversidad,
+		hijos_instituto=@hijosInstituto,
+		hijos_colegio=@hijosColegio,
+		hijos_otro=@hijosOtro,
+		centro_estudios=@centroEstudios,
+    	fecha_modificacion = CURRENT_TIMESTAMP,
+    	usuario_modificacion_id = @Usuario_id
+	WHERE
+		ficha_laboral_adicional_id = @Ficha_laboral_adicional_id AND
+		ficha_laboral_id = @Ficha_laboral_id
+	SET @estado = 1
+	SET @mensaje = 'Información adicional (I) actualizada correctamente'
+			
+END TRY
+BEGIN CATCH
+
+	SET @estado = 0;
+	SET @mensaje = ERROR_MESSAGE();
+		
+END CATCH

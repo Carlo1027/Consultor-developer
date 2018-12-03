@@ -1,0 +1,39 @@
+USE [Inland]
+GO
+/****** Object:  StoredProcedure [ges].[termino_listar]    Script Date: 3/12/2018 10:53:09 ******/
+SET ANSI_NULLS ON
+GO
+SET QUOTED_IDENTIFIER ON
+GO
+
+ALTER PROC [ges].[termino_listar] (
+	@Page INT,
+	@Size INT
+)
+AS
+
+SET NOCOUNT ON
+
+	SELECT
+		TER.termino_id,
+		MEN.menu_id,
+		MEN.descripcion,
+		UNI.unidad_negocio_id,
+		UNI.nombre,
+		TER.version,
+		TER.descripcion,
+		TER.estado
+	FROM
+		ges.termino TER
+		INNER JOIN seg.menu MEN ON MEN.menu_id = TER.menu_id
+		INNER JOIN seg.unidad_negocio UNI ON UNI.unidad_negocio_id = TER.unidad_negocio_id
+	ORDER BY 1 DESC
+	OFFSET ((@Page - 1)* @Size) ROWS
+	FETCH NEXT @Size ROWS ONLY;
+
+	SELECT COUNT(*)
+	FROM
+		ges.termino TER
+		INNER JOIN seg.menu MEN ON MEN.menu_id = TER.menu_id
+		INNER JOIN seg.unidad_negocio UNI ON UNI.unidad_negocio_id = TER.unidad_negocio_id
+	ORDER BY 1 DESC;

@@ -1,0 +1,32 @@
+USE [Inland]
+GO
+/****** Object:  StoredProcedure [seg].[menu_eliminar]    Script Date: 3/12/2018 10:56:56 ******/
+SET ANSI_NULLS ON
+GO
+SET QUOTED_IDENTIFIER ON
+GO
+ALTER PROC [seg].[menu_eliminar]
+	@Menu_id INT,
+	@estado INT OUT,
+	@mensaje varchar(max) OUT 
+AS
+
+SET NOCOUNT ON 
+
+BEGIN TRY
+
+	DELETE FROM ges.reporte WHERE menu_id = @Menu_id;
+	DELETE FROM ges.termino WHERE menu_id = @Menu_id;
+	DELETE FROM seg.rol_menu WHERE menu_id = @Menu_id;
+	DELETE FROM seg.menu WHERE menu_id = @Menu_id;
+
+	SET @estado = 1;
+	SET @mensaje = 'Item eliminado correctamente';
+
+END TRY
+BEGIN CATCH
+
+	SET @estado = 0;
+	SET @mensaje = ERROR_MESSAGE();
+		
+END CATCH

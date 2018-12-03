@@ -1,0 +1,98 @@
+USE [Inland]
+GO
+/****** Object:  StoredProcedure [prh].[incidente_investigar]    Script Date: 3/12/2018 10:03:21 ******/
+SET ANSI_NULLS ON
+GO
+SET QUOTED_IDENTIFIER ON
+GO
+
+ALTER proc [prh].[incidente_investigar] (
+	@usuario_investigacion_id bigint,
+	@incidente_id bigint,
+	@comentario varchar(max),
+	@areas_involucradas varchar(max),
+	@enlace VARCHAR(MAX),
+	@estado INT OUT,
+	@mensaje varchar(max) OUT 
+)
+AS
+
+SET NOCOUNT ON 
+
+BEGIN TRY
+	DECLARE @Fullname VARCHAR(MAX)
+	DECLARE @EmailSender VARCHAR(MAX)
+	DECLARE @Email_campos NVARCHAR(MAX)
+	DECLARE @PlantillaId INT
+
+	DECLARE @SQL NVARCHAR(MAX)
+
+	IF(@areas_involucradas = '')
+	BEGIN
+		SET @areas_involucradas = NULL
+	END
+
+	-- Actualizar Investigar Incidente		
+	UPDATE prh.incidente
+	SET 
+		usuario_investigacion_id = @usuario_investigacion_id,
+		comentario_investigacion = iif(@comentario is null,null,@comentario),
+		areas_involucradas = iif(@areas_involucradas is null,null,@areas_involucradas),
+		estado = 1,
+		fecha_investigacion=SYSDATETIME()
+	WHERE incidente_id=@incidente_id
+
+	IF @areas_involucradas IS NOT NULL
+	BEGIN
+		SET @SQL = 'SELECT @Salida = (SELECT INV.correo + '';''
+								FROM prh.incidente_involucrados INV
+								WHERE INV.estado = ''2'' AND INV.involucrado_id IN ('+@areas_involucradas+')
+								FOR XML PATH(''''))';
+
+		DECLARE @Salida VARCHAR(MAX)
+		EXEC SP_EXECUTESQL @SQL, N'@Salida NVARCHAR(MAX) OUTPUT', @Salida OUTPUT
+		SET @EmailSender = @Salida
+
+		--Envío correo único a las áreas involucradas
+		SET @PlantillaId = 15
+		SET @Email_campos = N'{"nombreDocumento":"'+CAST(@incidente_id AS VARCHAR)+'","enlace":"'+@enlace+'"}'
+		EXEC ges.email_enviar
+				@plantilla_id = @PlantillaId,
+				@destinatario = @EmailSender,
+				@copia = NULL,
+				@copia_oculta = NULL,
+				@titulo = NULL,
+				@campos = @Email_campos,
+				@estado = 1,
+				@mensaje = 'correo enviado'
+	END
+
+	-- Datos del usuario que registró el incidente
+	SELECT @Fullname = CONCAT(USU.nombres, ' ', USU.apellido_paterno, ' ', USU.apellido_materno),
+		   @EmailSender = USU.correo
+	FROM seg.usuario USU
+	INNER JOIN prh.incidente INC ON INC.usuario_registro_id = USU.usuario_id
+	WHERE INC.incidente_id = @incidente_id
+
+	--Correo al usuario por inicio de investigacion
+	SET @PlantillaId = 16
+	SET @Email_campos = N'{"nombreCompleto":"'+@Fullname+'","nombreDocumento":"'+CAST(@incidente_id AS VARCHAR)+'","enlace":"'+@enlace+'"}'
+	EXEC ges.email_enviar
+			@plantilla_id = @PlantillaId,
+			@destinatario = @EmailSender,
+			@copia = NULL,
+			@copia_oculta = NULL,
+			@titulo = NULL,
+			@campos = @Email_campos,
+			@estado = 1,
+			@mensaje = 'correo enviado'
+
+	SET @estado = 1
+	SET @mensaje = 'Se actualizó el incidente N° '+CAST(@incidente_id AS VARCHAR)
+END TRY
+BEGIN CATCH
+
+	SET @mensaje = ERROR_MESSAGE();
+	SET @estado = 0;
+		
+END CATCH

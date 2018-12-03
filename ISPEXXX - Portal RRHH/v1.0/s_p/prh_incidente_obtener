@@ -1,0 +1,52 @@
+USE [Inland]
+GO
+/****** Object:  StoredProcedure [prh].[incidente_obtener]    Script Date: 3/12/2018 10:03:59 ******/
+SET ANSI_NULLS ON
+GO
+SET QUOTED_IDENTIFIER ON
+GO
+
+ALTER proc [prh].[incidente_obtener] (
+	@usuario_id bigint,
+	@nroIncidente bigint
+)
+AS
+--@jpoOutput{result : 'incident {incidenteId : number, respuesta1 : string, respuesta2 : string, respuesta3 : string, respuesta4 : string, respuesta5 : string, respuesta6 : string, estado : number, usuarioInvestigacionId : number, usuarioInvestigacionNombre : string, fechaInvestigacion : Date, comentarioInvestigacion : string, areasInvolucradas : string, usuarioAtencionId : number, usuarioAtencionNombre : string, fechaAtencion : Date, comentarioAtencion : string, fechaRegistro : Date}'}
+--@jpoOutputs{result : 'areas {involucrado_id : number, descripcion : string, seleccionar : number}'}
+SET NOCOUNT ON 
+
+BEGIN
+
+	DECLARE @Areas VARCHAR(MAX)
+
+	SELECT @Areas = INC.areas_involucradas
+	FROM prh.incidente INC
+	WHERE incidente_id=@nroIncidente
+
+	SELECT  incidente_id, respuesta1, respuesta2, respuesta3, respuesta4, respuesta5, respuesta6, INC.estado estado,
+			usuario_investigacion_id, CONCAT(USUA.nombres, ' ', USUA.apellido_paterno, ' ', USUA.apellido_materno) usuario_investigacion_nombre, fecha_investigacion, comentario_investigacion, areas_involucradas,
+			usuario_atendido_id, CONCAT(USUB.nombres, ' ', USUB.apellido_paterno, ' ', USUB.apellido_materno) usuario_atendido_nombre, fecha_atendido, comentario_atendido,
+			INC.fecha_registro
+	FROM prh.incidente INC
+	LEFT JOIN seg.usuario USUA ON USUA.usuario_id = INC.usuario_investigacion_id
+	LEFT JOIN seg.usuario USUB ON USUB.usuario_id = INC.usuario_atendido_id
+	WHERE incidente_id=@nroIncidente AND (@usuario_id IS NULL OR (INC.usuario_registro_id = @usuario_id))
+
+	DECLARE @SQL varchar(MAX)
+
+	IF @Areas IS NULL
+	BEGIN
+		SET @SQL = 'SELECT involucrado_id, descripcion, 0 AS seleccionar
+		FROM [prh].[incidente_involucrados] 
+		WHERE estado = cast(2 as varchar(1))'
+	END
+	ELSE
+	BEGIN
+		SET @SQL = 'SELECT involucrado_id, descripcion, CASE WHEN involucrado_id IN ('+@Areas+') THEN 1 ELSE 0 END AS seleccionar
+		FROM [prh].[incidente_involucrados] 
+		WHERE estado = cast(2 as varchar(1))'
+	END
+	EXEC(@SQL)
+
+	
+END

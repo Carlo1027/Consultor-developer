@@ -1,0 +1,102 @@
+USE [Inland]
+GO
+/****** Object:  StoredProcedure [seg].[usuario_clave_restaurar]    Script Date: 3/12/2018 10:59:42 ******/
+SET ANSI_NULLS ON
+GO
+SET QUOTED_IDENTIFIER ON
+GO
+ALTER PROC [seg].[usuario_clave_restaurar] (
+	@Correo VARCHAR(100),
+	@Enlace VARCHAR(250),
+	@estado INT OUT,
+	@mensaje varchar(max) OUT 
+)
+AS
+
+SET NOCOUNT ON 
+
+	BEGIN TRY
+
+		DECLARE @NOMBRE VARCHAR(100)
+		DECLARE @APELLIDO VARCHAR(100)
+		DECLARE @USUARIO_ID INT
+		DECLARE @USU_ESTADO CHAR(1)
+
+		-- 1. Obteniendo una cantidad de registros por fecha seleccionada
+		SELECT 
+			@NOMBRE = nombres,
+			@APELLIDO = CONCAT(apellido_paterno, ' ', apellido_materno),
+			@USUARIO_ID = usuario_id,
+			@USU_ESTADO = estado
+		FROM
+			seg.usuario
+		WHERE
+			correo = @Correo
+
+		-- 2. Validando si la cantidad de cupos es menor a la de registros por fecha permite registrar
+		IF @USUARIO_ID IS NOT NULL
+		BEGIN
+
+			-- 2.1. Valida si el usuario esta activo, registrado pero no confirmado, o si envio reestablecer contraseña
+			IF @USU_ESTADO = '1' OR @USU_ESTADO = '3' -- OR @USU_ESTADO = '2'
+			BEGIN
+
+				UPDATE seg.usuario SET estado = '3' WHERE usuario_id = @USUARIO_ID
+
+				DECLARE @Email_campos NVARCHAR(MAX) = N'{"nombre":"'+@NOMBRE+' '+@APELLIDO+'","usuario":"'+@Correo+'","enlace":"'+@Enlace+'"}'
+			
+				EXEC ges.email_enviar
+					@plantilla_id = 3,
+					@destinatario = @Correo,
+					@copia = NULL,
+					@copia_oculta = NULL,
+					@titulo = NULL,
+					@campos = @Email_campos,
+					@estado = @estado OUTPUT,
+					@mensaje = @mensaje OUTPUT
+
+				IF @estado = 1
+				BEGIN
+					SET @mensaje = 'Recibirás un correo para reestablecer tu contraseña.';
+				END
+
+			END
+			ELSE IF @USU_ESTADO = '0'
+			BEGIN
+
+				SET @estado = 3;
+				SET @mensaje = 'El usuario se encuentra inactivo';
+
+			END
+			ELSE IF @USU_ESTADO = '2'
+			BEGIN
+
+				SET @estado = 3;
+				SET @mensaje = 'El usuario no ha confirmado su cuenta de correo';
+
+			END
+			ELSE IF @USU_ESTADO = '4'
+			BEGIN
+
+				SET @estado = 3;
+				SET @mensaje = 'El usuario ha confirmado su cuenta pero está pendiente la aprobación del administrador';
+
+			END
+
+		END
+		ELSE
+		BEGIN
+
+			SET @estado = 2;
+			SET @mensaje = 'El correo no ha sido registrado';
+
+		END
+			
+	END TRY
+	BEGIN CATCH
+
+		SET @estado = 0;
+		SET @mensaje = ERROR_MESSAGE();
+		
+	END CATCH
+

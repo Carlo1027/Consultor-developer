@@ -1,0 +1,19 @@
+USE [Inland]
+GO
+/****** Object:  StoredProcedure [seg].[regla_listar]    Script Date: 3/12/2018 10:58:47 ******/
+SET ANSI_NULLS ON
+GO
+SET QUOTED_IDENTIFIER ON
+GO
+ALTER PROC [seg].[regla_listar]
+	@Sistema_id INT,
+	@Reglas_id VARCHAR(1000)  -- 1,2,3,4
+AS
+--@jpoOutputs{result : 'reglas {regla_id : number, parametros : string}'}
+SET NOCOUNT ON
+
+BEGIN
+	DECLARE @SQL varchar(2000)
+	SET @SQL = 'SELECT regla_id, parametros FROM seg.regla WHERE sistema_id = '+cast(@Sistema_id as varchar(1))+' AND regla_id IN ('+@Reglas_id+') AND estado = ''1'''
+	EXEC(@SQL)
+END

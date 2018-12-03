@@ -1,0 +1,59 @@
+USE [Inland]
+GO
+/****** Object:  StoredProcedure [ges].[reporte_registrar]    Script Date: 3/12/2018 10:52:45 ******/
+SET ANSI_NULLS ON
+GO
+SET QUOTED_IDENTIFIER ON
+GO
+
+ALTER PROC [ges].[reporte_registrar] (
+	@Menu_id INT,
+	@Nombre VARCHAR(100),
+	@Descripcion TEXT,
+	@Parametros TEXT,
+	@EstadoReporte CHAR(1),
+	@Usuario_id INT,
+	@Roles_id XML,
+	@estado INT OUT,
+	@mensaje varchar(max) OUT 
+)
+AS
+SET NOCOUNT ON
+BEGIN TRY
+	/*
+	DECLARE @Roles_id XML = N'
+	<Roles>
+		<Rol>
+			<rol_id>1</rol_id>
+		</Rol>
+		<Rol>
+			<rol_id>2</rol_id>
+		</Rol>
+	</Roles>
+	'*/
+
+	DECLARE @Reporte_id INT
+	
+	INSERT INTO 
+		ges.reporte (menu_id, nombre, descripcion, parametros, estado, usuario_registro_id)
+	VALUES
+		(@Menu_id, @Nombre, @Descripcion, @Parametros, @EstadoReporte, @Usuario_id)
+	SET @Reporte_id = @@IDENTITY
+
+	INSERT INTO ges.reporte_rol (reporte_id, rol_id)
+	SELECT @Reporte_id,
+		C.value('rol_id[1]','int') AS rol_id
+	FROM @Roles_id.nodes('/Rol') AS T(C)
+
+	SET @estado = 1
+	SET @mensaje = 'Se registró el reporte correctamente'
+		
+END TRY
+BEGIN CATCH
+	
+	DECLARE @log_id INT, @el INT = ERROR_LINE(), @en INT = ERROR_NUMBER(), @em NVARCHAR(4000) = ERROR_MESSAGE()
+	EXEC seg.log_registrar @Usuario_id, 'ges.reporte_registrar', @el, @en, @em, @log_id OUTPUT
+	SET @mensaje = CAST(@log_id AS VARCHAR)+' | '+ERROR_MESSAGE();
+	SET @estado = 0;
+
+END CATCH

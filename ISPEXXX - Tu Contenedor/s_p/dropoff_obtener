@@ -1,0 +1,44 @@
+USE [Inland]
+GO
+/****** Object:  StoredProcedure [tco].[dropoff_obtener]    Script Date: 3/12/2018 10:24:51 ******/
+SET ANSI_NULLS ON
+GO
+SET QUOTED_IDENTIFIER ON
+GO
+
+ALTER PROC [tco].[dropoff_obtener] (
+	@Dropoff_id INT
+)
+AS
+
+SET NOCOUNT ON
+
+	SELECT
+		DRO.dropoff_id,
+		DRO.empresa_id,
+		EMP.razon_social AS cliente,
+		DRO.ciudad_id,
+		UBI.nombre AS ciudad,
+		DRO.linea_id,
+		LIN.nombre AS linea,
+		DRO.fecha_inicio,
+		DRO.fecha_fin,
+		DRO.comentario,
+		DRO.estado estado,
+		CASE DRO.estado
+			WHEN 0 THEN 'Inactivo'
+			WHEN 1 THEN 'Activo'
+		END estado_descripcion,
+		DRO.deposito_id,
+		DEP.nombre
+	FROM
+		tco.dropoff DRO
+		INNER JOIN ges.empresa EMP ON EMP.empresa_id = DRO.empresa_id
+		INNER JOIN tco.ciudad CIU ON CIU.ciudad_id = DRO.ciudad_id
+		INNER JOIN ges.ubigeo UBI ON UBI.ubigeo_id = CIU.ciudad_id
+		INNER JOIN tco.linea LIN ON LIN.linea_id = DRO.linea_id
+		LEFT JOIN tco.deposito DEP ON DEP.deposito_id = DRO.deposito_id
+	WHERE
+		dropoff_id = @Dropoff_id
+
+	EXEC tco.dropoff_condicion_listar @Dropoff_id

@@ -1,0 +1,68 @@
+USE [Inland]
+GO
+/****** Object:  StoredProcedure [tco].[dropoff_registrar]    Script Date: 3/12/2018 10:25:03 ******/
+SET ANSI_NULLS ON
+GO
+SET QUOTED_IDENTIFIER ON
+GO
+
+ALTER PROC [tco].[dropoff_registrar] (
+	@Cliente_id INT,
+	@Ciudad_id INT,
+	@Linea_id INT,
+	@Deposito_id INT,
+	@Fecha_inicio DATE,
+	@Fecha_fin DATE,
+	@Comentario VARCHAR(255),
+	@Activo CHAR(1),
+	@Condiciones xml,
+	@Usuario_id INT,
+	@estado INT OUT,
+	@mensaje varchar(max) OUT 
+)
+AS
+SET NOCOUNT ON
+BEGIN TRY
+
+	DECLARE @Dropoff_id INT
+
+	-- 1. Registrando el dropoff
+	INSERT INTO 
+		tco.dropoff ([empresa_id],[ciudad_id],[linea_id],[fecha_inicio],[fecha_fin],[comentario],[estado],[usuario_registro_id], [deposito_id])
+	VALUES
+		(@Cliente_id, @Ciudad_id, @Linea_id, @Fecha_inicio, @Fecha_fin, @Comentario, @Activo, @Usuario_id, @Deposito_id)
+	SET @Dropoff_id = @@IDENTITY
+
+	-- 2. Registrando las condiciones (Reglas)
+	IF(@Condiciones IS NOT NULL)
+	BEGIN		
+		INSERT INTO [tco].[condicion] ([dropoff_id], [contenedor_tipo], [contenedor_tamano], [indicador_ilimitado], [cupo], [indicador_dropoff], [dropoff], [tipo_moneda])
+		SELECT @Dropoff_id,
+			C.value('contenedor_tipo[1]','int') AS contenedor_tipo,
+			C.value('contenedor_tamano[1]','int') AS contenedor_tamano,
+			C.value('indicador_ilimitado[1]','char(1)') AS indicador_ilimitado,
+			CASE 
+			  WHEN C.value('cupo[1]','int') != ''  THEN C.value('cupo[1]','int')
+			  ELSE null
+			END AS cupo,
+			C.value('indicador_dropoff[1]','char(1)') AS indicador_dropoff,
+			CASE 
+			  WHEN C.value('dropoff[1]','int') != ''  THEN C.value('dropoff[1]','int')
+			  ELSE null
+			END AS dropoff,
+			C.value('tipo_moneda[1]','int') AS tipo_moneda
+		FROM @Condiciones.nodes('/Regla') AS T(C)
+	END
+
+	SET @estado = 1
+	SET @mensaje = 'Se registró el Drop Off correctamente'
+		
+END TRY
+BEGIN CATCH
+	
+	DECLARE @log_id INT, @el INT = ERROR_LINE(), @en INT = ERROR_NUMBER(), @em NVARCHAR(4000) = ERROR_MESSAGE()
+	EXEC seg.log_registrar @Usuario_id, 'tco.dropoff_registrar', @el, @en, @em, @log_id OUTPUT
+	SET @mensaje = CAST(@log_id AS VARCHAR)+' | '+ERROR_MESSAGE();
+	SET @estado = 0;
+
+END CATCH

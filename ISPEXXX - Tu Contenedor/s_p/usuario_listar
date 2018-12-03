@@ -1,0 +1,78 @@
+USE [Inland]
+GO
+/****** Object:  StoredProcedure [tco].[usuario_listar]    Script Date: 3/12/2018 10:28:27 ******/
+SET ANSI_NULLS ON
+GO
+SET QUOTED_IDENTIFIER ON
+GO
+
+ALTER PROC [tco].[usuario_listar] (
+	@Nombres VARCHAR(200),
+	@Correo VARCHAR(100),
+	@Page INT,
+	@Size INT
+)
+AS 
+
+SET NOCOUNT ON
+
+	DECLARE @T_lista TABLE (
+		usuario_id INT,
+		correo VARCHAR(100),
+		fecha_cambio_clave INT,
+		nombres VARCHAR(100),
+		apellido_paterno VARCHAR(100),
+		apellido_materno VARCHAR(100),
+		estadoUsuario CHAR(1),
+		adjunto_foto_id INT,
+		empresa_id INT,
+		razon_social VARCHAR(100),
+		estadoEmpresa CHAR(1)
+	)
+
+	INSERT INTO @T_lista
+	SELECT DISTINCT
+		USU.usuario_id, 
+		USU.correo,
+		DATEDIFF(day,GETDATE(),USU.fecha_cambio_clave),
+		USU.nombres,
+		USU.apellido_paterno,
+		USU.apellido_materno,
+		USU.estado AS estadoUsuario,
+		USU.adjunto_foto_id,
+		EMP.empresa_id,
+		EMP.razon_social,
+		EMP.estado AS estadoEmpresa
+	FROM  
+		seg.usuario USU
+		INNER JOIN ges.empresa EMP ON EMP.empresa_id = USU.empresa_id
+		INNER JOIN seg.usuario_rol USR ON USR.usuario_id = USU.usuario_id
+		INNER JOIN seg.rol_menu ROM ON ROM.rol_id = USR.rol_id
+	WHERE
+		(@Nombres IS NULL OR (CONCAT(USU.nombres,' ',USU.apellido_paterno,' ',USU.apellido_materno) LIKE @Nombres)) AND
+		(@Correo IS NULL OR (USU.correo = @Correo)) AND
+		ROM.menu_id = 52
+	ORDER BY 1 DESC
+	OFFSET ((@Page - 1)* @Size) ROWS
+	FETCH NEXT @Size ROWS ONLY;
+
+	SELECT 
+		LIS.*,
+		(SELECT ','+ROL.nombre
+       FROM seg.rol ROL
+	   INNER JOIN seg.usuario_rol USR ON USR.rol_id = ROL.rol_id
+	   INNER JOIN seg.rol_menu ROM ON ROM.rol_id = ROL.rol_id
+	   WHERE usr.usuario_id = LIS.usuario_id
+	   AND ROM.menu_id = 52
+       FOR XML PATH(''), TYPE
+       ).value('substring(text()[1], 2)', 'varchar(max)') roles
+	FROM @T_lista LIS
+
+	SELECT COUNT(*) FROM (SELECT DISTINCT USU.*
+	FROM
+		seg.usuario USU
+		INNER JOIN ges.empresa EMP ON EMP.empresa_id = USU.empresa_id
+		INNER JOIN seg.usuario_rol USR ON USR.usuario_id = USU.usuario_id
+		INNER JOIN seg.rol_menu ROM ON ROM.rol_id = USR.rol_id
+	WHERE
+		ROM.menu_id = 52) AS TPT

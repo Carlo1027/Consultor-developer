@@ -1,0 +1,22 @@
+USE [Inland]
+GO
+/****** Object:  StoredProcedure [tco].[deposito_contacto_listar]    Script Date: 3/12/2018 10:22:38 ******/
+SET ANSI_NULLS ON
+GO
+SET QUOTED_IDENTIFIER ON
+GO
+
+ALTER PROC [tco].[deposito_contacto_listar] (
+	@Deposito_id INT
+)
+AS
+
+SET NOCOUNT ON
+
+	SELECT
+		DPC.correo,
+		DPC.nombre
+	FROM
+		tco.deposito_contacto DPC
+	WHERE
+		DPC.deposito_id = @Deposito_id

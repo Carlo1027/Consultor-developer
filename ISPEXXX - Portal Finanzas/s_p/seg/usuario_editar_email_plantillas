@@ -1,0 +1,50 @@
+USE [Inland]
+GO
+/****** Object:  StoredProcedure [seg].[usuario_editar_email_plantillas]    Script Date: 3/12/2018 11:00:29 ******/
+SET ANSI_NULLS ON
+GO
+SET QUOTED_IDENTIFIER ON
+GO
+ALTER PROC [seg].[usuario_editar_email_plantillas] (--@jpoConfig{oauth2Enable : true}
+	@Usuario_id INT,
+	@Plantillas_json NVARCHAR(MAX),
+	@estado INT OUT,
+	@mensaje varchar(max) OUT 
+)
+AS
+
+SET NOCOUNT ON 
+
+	BEGIN TRY
+
+		DECLARE @T_CAMPOS TABLE(
+			parent_ID INT,
+			usuario_id INT,
+			email_plantilla_id INT,
+			estado VARCHAR(10),
+			habilitado VARCHAR(10)
+		)
+
+		INSERT INTO @T_CAMPOS
+		EXEC [ges].[json_listar] @Plantillas_json
+
+		UPDATE 
+			UEP
+		SET 
+			UEP.Estado = (CASE WHEN CAM.estado = 'true' THEN '1' ELSE '0' END),
+			UEP.usuario_modificacion_id = @Usuario_id,
+			UEP.fecha_modificacion = CURRENT_TIMESTAMP
+		FROM
+			seg.usuario_email_plantilla AS UEP 
+			INNER JOIN @T_CAMPOS AS CAM ON CAM.usuario_id = UEP.usuario_id AND CAM.email_plantilla_id = UEP.email_plantilla_id
+
+		SET @estado = 1
+		SET @mensaje = 'Configuración de email cambiado correctamente'
+
+	END TRY
+	BEGIN CATCH
+
+		SET @estado = 0;
+		SET @mensaje = ERROR_MESSAGE();
+		
+	END CATCH

@@ -1,0 +1,83 @@
+USE [Inland]
+GO
+/****** Object:  StoredProcedure [seg].[usuario_clave_reestablecer]    Script Date: 3/12/2018 10:59:30 ******/
+SET ANSI_NULLS ON
+GO
+SET QUOTED_IDENTIFIER ON
+GO
+ALTER PROC [seg].[usuario_clave_reestablecer] (
+	@Correo VARCHAR(100),
+	@Clave VARCHAR(100),
+	@estado INT OUT,
+	@mensaje varchar(max) OUT 
+)
+AS
+
+SET NOCOUNT ON 
+
+BEGIN TRY
+
+	DECLARE @USUARIO_ID INT
+	DECLARE @USU_CLAVE VARCHAR(100)
+	DECLARE @USU_ESTADO CHAR(1)
+
+	-- 1. Obteniendo una cantidad de registros por fecha seleccionada
+	SELECT 
+		@USUARIO_ID = usuario_id,
+		@USU_CLAVE = clave,
+		@USU_ESTADO = estado
+	FROM
+		seg.usuario
+	WHERE
+		correo = @Correo
+
+	-- 2. Validando si existe el usuario
+	IF @USUARIO_ID IS NOT NULL
+	BEGIN
+
+		IF @USU_CLAVE <> @Clave
+		BEGIN
+
+			-- 2.1. Valida si el usuario esta en estado de reestablecimiento
+			IF @USU_ESTADO = '3'
+			BEGIN
+
+				UPDATE seg.usuario SET clave = @Clave, estado = 1 WHERE usuario_id = @USUARIO_ID
+
+				SET @estado = 1;
+				SET @mensaje = 'Se cambio de clave correctamente';
+
+			END
+			ELSE
+			BEGIN
+
+				SET @estado = 3;
+				SET @mensaje = 'El usuario no ha solicitado reestablecer su contraseña';
+
+			END
+
+		END
+		ELSE
+		BEGIN
+
+			SET @estado = 4;
+			SET @mensaje = 'Debes ingresar una contraseña que sea diferente a la anterior';
+
+		END
+
+	END
+	ELSE
+	BEGIN
+
+		SET @estado = 2;
+		SET @mensaje = 'El correo no ha sido registrado';
+
+	END
+			
+END TRY
+BEGIN CATCH
+
+	SET @estado = 0;
+	SET @mensaje = ERROR_MESSAGE();
+		
+END CATCH

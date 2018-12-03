@@ -1,0 +1,98 @@
+USE [Inland]
+GO
+/****** Object:  StoredProcedure [ges].[email_enviar]    Script Date: 3/12/2018 10:50:43 ******/
+SET ANSI_NULLS ON
+GO
+SET QUOTED_IDENTIFIER ON
+GO
+--[ges].[email_enviar] 2,'andre.moreno@inlandservices.com','','','PRUEBA DE LOGO','{"nombre":"a","usuario":"b","enlace":"asdasd"}',1,''
+/****** Object:  StoredProcedure [ges].[email_enviar]    Script Date: 14/09/2018 11:39:10 ******/
+ALTER PROC [ges].[email_enviar] (
+	@plantilla_id INT, -- 2
+	@destinatario NVARCHAR(MAX), -- oscar.huertas@inlandservices.com
+	@copia NVARCHAR(MAX), -- odhp1989@gmail.com
+	@copia_oculta NVARCHAR(MAX), -- odhp1989@gmail.com
+	@titulo VARCHAR(MAX), -- APM - Portal Inland - Confirmacion de usuario
+	@campos VARCHAR(MAX), -- '{"nombre":"a","usuario":"b","enlace":"asdasd"}'
+	@estado INT OUT,
+	@mensaje varchar(max) OUT 
+)
+AS
+
+SET NOCOUNT ON 
+
+	BEGIN TRY
+		
+		DECLARE @PL_plantilla_id INT
+		DECLARE @PL_destinatario NVARCHAR(MAX)
+		DECLARE @PL_copia NVARCHAR(MAX)
+		DECLARE @PL_copia_oculta NVARCHAR(MAX)
+		DECLARE @PL_titulo NVARCHAR(MAX)
+
+		SELECT 
+			@PL_plantilla_id = email_plantilla_id,
+			@PL_destinatario = destinatario, 
+			@PL_copia = copia, 
+			@PL_copia_oculta = copia_oculta, 
+			@PL_titulo = titulo
+		FROM 
+			ges.email_plantilla
+		WHERE
+			email_plantilla_id = @plantilla_id
+
+		IF @PL_plantilla_id IS NOT NULL
+		BEGIN
+
+			IF @destinatario IS NULL
+			BEGIN
+				SET @destinatario = @PL_destinatario
+			END
+
+			IF @copia IS NULL
+			BEGIN
+				SET @copia = @PL_copia
+			END
+
+			IF @copia_oculta IS NULL
+			BEGIN
+				SET @copia_oculta = @PL_copia_oculta
+			END
+
+			IF @titulo IS NULL
+			BEGIN
+				SET @titulo = @PL_titulo
+			END
+
+			DECLARE @pl_body NVARCHAR(MAX) = ges.fn_obtener_email_plantilla(@plantilla_id, @campos)
+
+			SET @titulo = dbo.fn_reemplazar_plantilla(@titulo, @campos)
+
+			EXEC [MSDTEST16].msdb.dbo.sp_send_dbmail 
+				 @profile_name			= 'hisadmin'
+				,@recipients			= @destinatario
+				,@copy_recipients		= @copia 
+				,@blind_copy_recipients = @copia_oculta
+				,@body					= @pl_body
+				,@body_format			= 'HTML'
+				,@subject				= @titulo
+				,@file_attachments		= '\\10.10.10.60\fs_data\SHARED\LogoAPM.png'
+
+			SET @estado = 1
+			SET @mensaje = 'Proceso realizado corréctamente'
+
+		END
+		ELSE
+		BEGIN
+
+			SET @estado = 2
+			SET @mensaje = 'Plantilla no encontrada'
+
+		END
+
+	END TRY
+	BEGIN CATCH
+
+		SET @estado = 0;
+		SET @mensaje = ERROR_MESSAGE();
+		
+	END CATCH

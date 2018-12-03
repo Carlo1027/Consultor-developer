@@ -1,0 +1,147 @@
+USE [Inland]
+GO
+/****** Object:  StoredProcedure [seg].[usuario_registrar]    Script Date: 3/12/2018 11:01:27 ******/
+SET ANSI_NULLS ON
+GO
+SET QUOTED_IDENTIFIER ON
+GO
+ALTER PROC [seg].[usuario_registrar] (
+	@Nombre VARCHAR(100),
+	@Apellido_paterno VARCHAR(100),
+	@Apellido_materno VARCHAR(100),
+	@Correo VARCHAR(100),
+	@Clave VARCHAR(100),
+	@Ruc VARCHAR(100),
+	@Empresa VARCHAR(100),
+	@Enlace VARCHAR(250),
+	@Pais_id INT,
+	@Origen VARCHAR(3),
+	@estado INT OUT,
+	@mensaje varchar(max) OUT 
+)
+AS
+
+SET NOCOUNT ON 
+
+	BEGIN TRY
+
+		DECLARE @Usuario_id INT
+		DECLARE @PlantillaId INT
+
+		SET @PlantillaId = 2
+
+		SET @Correo = UPPER(@Correo)
+
+		-- 1. Obteniendo el id de usuario en base al correo
+		SELECT @Usuario_id = usuario_id
+		FROM
+			seg.usuario
+		WHERE
+			UPPER(id) = @Correo
+
+		-- 3. Validando si el usuario no existe
+		IF @Usuario_id IS NULL
+		BEGIN
+			
+			IF @Origen = 'RFE'
+			BEGIN
+				EXEC [seg].[usuario_registrar_validar_finanzas]
+					@Ruc = @Ruc,
+					@estado = @estado OUTPUT,
+					@mensaje = @mensaje OUTPUT
+				IF @estado = 2 or @estado = 0
+				BEGIN
+					RETURN
+				END
+			END
+
+			DECLARE @Empresa_id INT
+
+			-- 3.1. Valida si existe el RUC ingresado si, no existe lo crea, si existe lo actualiza
+			SELECT @Empresa_id = empresa_id
+			FROM
+				ges.empresa
+			WHERE
+				documento = @Ruc AND
+				unidad_negocio_id = @Pais_id
+
+			IF @Empresa_id > 0
+			BEGIN
+				UPDATE ges.empresa SET razon_social = @Empresa WHERE empresa_id = @Empresa_id
+			END
+			ELSE
+			BEGIN
+				INSERT INTO ges.empresa (documento, razon_social, estado, usuario_registro_id, unidad_negocio_id) 
+				VALUES (@Ruc, @Empresa, '1', 1, @Pais_id)
+				SET @Empresa_id = @@IDENTITY
+			END
+
+			-- 3.1. Registra al usuario nuevo
+			INSERT INTO 
+				seg.usuario (id, correo, clave, fecha_cambio_clave, nombres, apellido_paterno, apellido_materno, empresa_id, estado, usuario_registro_id)
+			VALUES
+				(@Correo, @Correo, @Clave, (Getdate()+60), @Nombre, @Apellido_paterno, @Apellido_materno, @Empresa_id, '2', 1)
+			SET @Usuario_id = @@IDENTITY
+
+			-- 3.2. Registra la modificacion de las tablas en base al usuario nuevo
+
+			IF @Origen = 'COP'
+			BEGIN
+				EXEC [seg].[usuario_registrar_citas]
+					@Usuario_id = @Usuario_id,
+					@estado = @estado OUTPUT,
+					@mensaje = @mensaje OUTPUT
+			END
+
+			IF @Origen = 'RFE'
+			BEGIN
+				SET @PlantillaId = 19
+
+				EXEC [seg].[usuario_registrar_finanzas]
+					@Usuario_id = @Usuario_id,
+					@estado = @estado OUTPUT,
+					@mensaje = @mensaje OUTPUT
+			END
+
+			IF @estado = 0
+			BEGIN
+				RETURN
+			END
+
+			UPDATE ges.empresa SET usuario_modificacion_id = @Usuario_id, fecha_modificacion = CURRENT_TIMESTAMP WHERE empresa_id = @Empresa_id
+			UPDATE seg.usuario SET usuario_modificacion_id = @Usuario_id, fecha_modificacion = CURRENT_TIMESTAMP WHERE usuario_id = @Usuario_id
+
+			-- 3.3. Enviar el email
+			DECLARE @Email_campos NVARCHAR(MAX) = N'{"nombre":"'+@Nombre+' '+@Apellido_paterno+' '+@Apellido_materno+'","usuario":"'+@Correo+'","enlace":"'+@Enlace+'"}'
+			
+			EXEC ges.email_enviar
+					@plantilla_id = @PlantillaId,
+					@destinatario = @Correo,
+					@copia = NULL,
+					@copia_oculta = NULL,
+					@titulo = NULL,
+					@campos = @Email_campos,
+					@estado = @estado OUTPUT,
+					@mensaje = @mensaje OUTPUT
+			
+			IF @estado = 1
+			BEGIN
+				SET @mensaje = 'Usuario creado correctamente, recibirás un correo de confirmación para completar el registro.';
+			END
+
+		END
+		ELSE
+		BEGIN
+
+			SET @estado = 2;
+			SET @mensaje = 'Ya estabas registrado, si no recuerdas tu clave reestablécela';
+
+		END
+			
+	END TRY
+	BEGIN CATCH
+
+		SET @estado = 0;
+		SET @mensaje = ERROR_MESSAGE();
+		
+	END CATCH

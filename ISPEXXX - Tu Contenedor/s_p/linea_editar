@@ -1,0 +1,48 @@
+USE [Inland]
+GO
+/****** Object:  StoredProcedure [tco].[linea_editar]    Script Date: 3/12/2018 10:25:34 ******/
+SET ANSI_NULLS ON
+GO
+SET QUOTED_IDENTIFIER ON
+GO
+ALTER PROC [tco].[linea_editar]
+	@Linea_id INT,
+	@Usuario_modificacion_id INT,
+	@Nombre_linea VARCHAR(MAX),
+	@Activo CHAR(1),
+	@estado INT OUT,
+	@mensaje varchar(max) OUT 
+AS
+
+SET NOCOUNT ON
+
+BEGIN TRY
+	IF(SELECT COUNT(*) FROM tco.linea A WHERE A.nombre=@Nombre_linea AND A.linea_id!=@Linea_id) = 0 
+	BEGIN
+		-- Actualiza línea
+		UPDATE tco.linea
+		SET
+			nombre = @Nombre_linea,
+			estado = @Activo,
+			usuario_modificacion_id = @Usuario_modificacion_id,
+    		fecha_modificacion = CURRENT_TIMESTAMP
+		WHERE
+			linea_id = @Linea_id
+	
+		SET @estado = 1;
+		SET @mensaje = 'Se actualizó la línea correctamente';
+	END
+	ELSE
+	BEGIN
+		SET @estado = 0;
+		SET @mensaje = 'Estos datos ya se encuentran registrados en otra línea';
+	END
+END TRY
+BEGIN CATCH
+       
+    DECLARE @log_id INT, @el INT = ERROR_LINE(), @en INT = ERROR_NUMBER(), @em NVARCHAR(4000) = ERROR_MESSAGE()
+    EXEC seg.log_registrar @Usuario_modificacion_id, 'tco.línea_editar', @el, @en, @em, @log_id OUTPUT
+    SET @mensaje = CAST(@log_id AS VARCHAR)+' | '+ERROR_MESSAGE();
+    SET @estado = 0;
+
+END CATCH

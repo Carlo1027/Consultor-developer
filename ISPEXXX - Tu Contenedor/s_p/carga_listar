@@ -1,0 +1,38 @@
+USE [Inland]
+GO
+/****** Object:  StoredProcedure [tco].[carga_listar]    Script Date: 3/12/2018 10:20:59 ******/
+SET ANSI_NULLS ON
+GO
+SET QUOTED_IDENTIFIER ON
+GO
+
+ALTER PROC [tco].[carga_listar] (
+	@NombreDocumento VARCHAR(MAX),
+	@FechaDesde DATE,
+	@FechaHasta DATE,
+	@Page INT,
+	@Size INT
+)
+AS
+
+SET NOCOUNT ON
+
+	DECLARE @fechaInicio DATETIME
+	DECLARE @fechaFin DATETIME
+	SET @fechaInicio  = CONVERT(CHAR(8),@FechaDesde,112) + ' 00:00:00'
+	SET @fechaFin = CONVERT(CHAR(8),@FechaHasta,112) + ' 23:59:59'
+
+	SELECT A.impo_base_id, B.nombre,A.fecha_registro
+	FROM tco.impo_base A
+	INNER JOIN ges.adjunto B ON B.adjunto_id = A.adjunto_id
+	WHERE (@FechaDesde IS NULL OR (@FechaHasta IS NULL OR (A.fecha_registro between @fechaInicio and @fechaFin))) AND
+		(@NombreDocumento IS NULL OR (B.nombre LIKE @NombreDocumento))
+	ORDER BY 1 DESC
+	OFFSET ((@Page - 1)* @Size) ROWS
+	FETCH NEXT @Size ROWS ONLY;
+
+	SELECT COUNT(*)
+	FROM tco.impo_base A
+	INNER JOIN ges.adjunto B ON B.adjunto_id = A.adjunto_id
+	WHERE (@FechaDesde IS NULL OR (@FechaHasta IS NULL OR (A.fecha_registro between @fechaInicio and @fechaFin))) AND
+		(@NombreDocumento IS NULL OR (B.nombre LIKE @NombreDocumento))

@@ -1,0 +1,24 @@
+USE [Inland]
+GO
+/****** Object:  StoredProcedure [tco].[cliente_obtener]    Script Date: 3/12/2018 10:22:04 ******/
+SET ANSI_NULLS ON
+GO
+SET QUOTED_IDENTIFIER ON
+GO
+
+ALTER proc [tco].[cliente_obtener] (
+	@Unidad_negocio_id INT,
+	@Empresa_id INT
+)
+AS
+
+SET NOCOUNT ON
+
+	SELECT
+		EMP.empresa_id,
+		EMP.estado estado,
+		EMP.razon_social,
+		EMP.documento,
+		EMP.tipo_documento
+	FROM ges.empresa EMP
+	WHERE unidad_negocio_id = @Unidad_negocio_id AND EMP.empresa_id = @Empresa_id

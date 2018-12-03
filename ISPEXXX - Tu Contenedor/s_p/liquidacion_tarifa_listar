@@ -1,0 +1,76 @@
+USE [Inland]
+GO
+/****** Object:  StoredProcedure [tco].[liquidacion_tarifa_listar]    Script Date: 3/12/2018 10:26:42 ******/
+SET ANSI_NULLS ON
+GO
+SET QUOTED_IDENTIFIER ON
+GO
+
+ALTER PROC [tco].[liquidacion_tarifa_listar] (
+	@Unidad_negocio_id INT,
+	@Linea_id INT,
+	@Tipo_operacion INT,
+	@Estado INT,
+	@Empresa_id INT,
+	@Contenedores XML,
+	@Preregistrada INT,
+	@Usuario_id INT,
+	@Liquidacion_id INT
+)
+AS
+
+SET NOCOUNT ON
+	
+	DECLARE @Fecha_actual Date = GETDATE()
+
+	SELECT TAB1.*, TAB2.acuerdo_id
+	FROM (
+	SELECT
+		TAR.tarifa_id,
+		SER.servicio_id,
+		SER.nombre AS servicio_nombre,
+		LIN.linea_id,
+		LIN.nombre AS linea_nombre,
+		CAT.catalogo_id AS tipo_operacion,
+		CAT.descripcion AS tipo_operacion_nombre,
+		TAR.valor,
+		TAR.iva,
+		TAR.total,
+		TAR.estado
+	FROM
+		tco.tarifa TAR
+		INNER JOIN tco.servicio SER ON SER.servicio_id = TAR.servicio_id
+		INNER JOIN tco.linea LIN ON LIN.linea_id = TAR.linea_id
+		INNER JOIN ges.catalogo CAT ON CAT.catalogo_id = TAR.tipo_operacion
+	WHERE
+		(@Unidad_negocio_id IS NULL OR (SER.unidad_negocio_id = @Unidad_negocio_id)) AND
+		(@Linea_id IS NULL OR (TAR.linea_id = @Linea_id)) AND
+		(@Tipo_operacion IS NULL OR (TAR.tipo_operacion = @Tipo_operacion)) AND
+		(@Estado IS NULL OR (TAR.estado = @Estado)) 
+	) TAB1
+
+	LEFT JOIN 
+	(
+		SELECT ACU.acuerdo_id, ACU.servicio_id
+		FROM
+			tco.tarifa TAR
+			INNER JOIN tco.servicio SER ON SER.servicio_id = TAR.servicio_id
+			INNER JOIN tco.acuerdo ACU ON ACU.servicio_id = SER.servicio_id
+		WHERE
+			(@Unidad_negocio_id IS NULL OR (SER.unidad_negocio_id = @Unidad_negocio_id)) AND
+			(@Linea_id IS NULL OR (TAR.linea_id = @Linea_id)) AND
+			(@Tipo_operacion IS NULL OR (TAR.tipo_operacion = @Tipo_operacion)) AND
+			(@Estado IS NULL OR (TAR.estado = @Estado)) AND
+			(ACU.fecha_inicio IS NULL OR (ACU.fecha_inicio <= @Fecha_actual)) AND
+			(ACU.fecha_fin IS NULL OR (ACU.fecha_fin >= @Fecha_actual)) AND
+			ACU.empresa_id = @Empresa_id AND ACU.estado = 1
+	) TAB2 ON TAB1.servicio_id = TAB2.servicio_id
+
+	IF @Preregistrada = 0
+	BEGIN
+		EXEC tco.liquidacion_dropoff_obtener @Contenedores
+	END
+	ELSE
+	BEGIN
+		EXEC tco.liquidacion_preregistrada_dropoff_obtener @Contenedores, @Usuario_id, @Liquidacion_id
+	END

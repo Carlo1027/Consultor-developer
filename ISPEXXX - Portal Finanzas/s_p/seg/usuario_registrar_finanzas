@@ -1,0 +1,35 @@
+USE [Inland]
+GO
+/****** Object:  StoredProcedure [seg].[usuario_registrar_finanzas]    Script Date: 3/12/2018 11:01:57 ******/
+SET ANSI_NULLS ON
+GO
+SET QUOTED_IDENTIFIER ON
+GO
+ALTER PROC [seg].[usuario_registrar_finanzas] (
+	@Usuario_id INT,
+	@estado INT OUT,
+	@mensaje varchar(max) OUT 
+)
+AS
+
+SET NOCOUNT ON 
+
+	BEGIN TRY
+
+		INSERT INTO seg.usuario_rol VALUES (@Usuario_id, 6) -- Asocia al usuario con el ROL 6 - Facturas Proveedor
+		-- Asociando el envio de correos.
+		INSERT INTO 
+			seg.usuario_email_plantilla (usuario_id, email_plantilla_id, estado, usuario_registro_id, habilitado) 
+		VALUES 
+			(@Usuario_id, 7, '2', @Usuario_id,'0'), (@Usuario_id, 8, '2', @Usuario_id,'0'), (@Usuario_id, 9, '2', @Usuario_id,'0') -- ROL 6 Tiene 3 correos Aprobado, Rechazado y Observado, ESTADO 2 no puede cancelar el envío de estos mensajes
+
+		SET @estado = 1;
+		SET @mensaje = 'Registrado';
+
+	END TRY
+	BEGIN CATCH
+
+		SET @estado = 0;
+		SET @mensaje = ERROR_MESSAGE();
+		
+	END CATCH

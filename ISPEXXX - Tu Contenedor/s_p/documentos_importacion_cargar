@@ -1,0 +1,119 @@
+USE [Inland]
+GO
+/****** Object:  StoredProcedure [tco].[documentos_importacion_cargar]    Script Date: 3/12/2018 10:23:35 ******/
+SET ANSI_NULLS ON
+GO
+SET QUOTED_IDENTIFIER ON
+GO
+ALTER PROC [tco].[documentos_importacion_cargar] (
+	@Usuario_id INT,
+	@Documentos xml,
+	@Unidad_negocio_id INT,
+	@Archivo_Nombre VARCHAR(150),
+	@Archivo_Formato VARCHAR(5),
+	@Archivo_Peso INT,
+	@Archivo_Ubicacion VARCHAR(250),
+	@estado INT OUT,
+	@mensaje VARCHAR(MAX) OUT,
+	@adjunto_id INT OUT
+)
+AS
+
+SET NOCOUNT ON
+
+	INSERT INTO ges.adjunto (nombre, formato, peso, ubicacion, usuario_registro_id) 
+	VALUES (@Archivo_Nombre, @Archivo_Formato, @Archivo_Peso, @Archivo_Ubicacion, @Usuario_id)
+	SET @adjunto_id = @@IDENTITY
+	
+	INSERT INTO tco.impo_base (adjunto_id, usuario_registro_id)
+	VALUES (@adjunto_id, @Usuario_id)
+	DECLARE @impo_base_id INT = @@IDENTITY
+
+	BEGIN TRY
+
+		--DECLARE @P_Arcivos XML = CAST(@Documentos AS XML)
+		DECLARE @P_Arcivos XML = @Documentos
+
+		-- 1.0 - Iterando los documentos
+
+		DECLARE @P_total int = @P_Arcivos.value('count(/Docs/*)', 'int')
+
+		DECLARE @P_indice int = 0
+
+		WHILE @P_indice < @P_total
+		BEGIN
+
+			-- 2.0 - Insertando y mapeando los IDs
+			--INSERT INTO @temp
+			INSERT INTO tco.doc_transporte(impo_base_id,numero_documento, empresa_id, unidad_negocio_id, linea_id, tipo_operacion, puerto_descarga, puerto_origen, nave, estado, usuario_registro_id)
+			SELECT 
+				@impo_base_id,
+				C.value('nDoc[1]','VARCHAR(50)') AS nombre,
+				C.value('empId[1]','INT') AS empresa_id,
+				C.value('unId[1]','INT') AS unidad_negocio_id,
+				1 linea,
+				C.value('tOper[1]','VARCHAR(50)') AS tipo_operacion,
+				CASE
+					WHEN C.value('port[1]','varchar(50)') != '' THEN C.value('port[1]','varchar(50)')
+					ELSE null
+				END AS puerto,
+				CASE
+					WHEN C.value('city[1]','varchar(200)') != '' THEN C.value('city[1]','varchar(200)')
+					ELSE null
+				END AS origen,
+				CASE
+					WHEN C.value('nave[1]','varchar(50)') != '' THEN C.value('nave[1]','varchar(50)')
+					ELSE null
+				END AS nave,
+				'1',
+				@Usuario_id
+			FROM @P_Arcivos.nodes('/Docs/Doc[sql:variable("@P_indice")+1]') AS T(C)
+
+			DECLARE @Doc_transporte_id INT = @@IDENTITY
+
+			-- Iterando los contenedores
+			DECLARE @P_total2 int = @P_Arcivos.value('count(/Docs/Doc[sql:variable("@P_indice")+1]/cns/*)', 'int')
+
+			DECLARE @P_indice2 int = 0
+
+			WHILE @P_indice2 < @P_total2
+			BEGIN
+				--INSERT INTO @temp2
+				INSERT INTO tco.doc_transporte_detalle (doc_transporte_id, contenedor, contenedor_tipo, contenedor_tamano, altura, commodity_name, commodity_customer, usuario_registro_id)
+				SELECT 
+					@Doc_transporte_id AS doc_transporte_id,
+					C.value('num[1]','VARCHAR(50)') AS contenedor,
+					C.value('tp[1]','VARCHAR(50)') AS tipo,
+					C.value('tm[1]','VARCHAR(50)') AS tamano,
+					C.value('al[1]','VARCHAR(50)') AS altura,
+					CASE
+						WHEN C.value('comN[1]','varchar(500)') != '' THEN C.value('comN[1]','varchar(500)')
+						ELSE null
+					END AS commodityName,
+					CASE
+						WHEN C.value('comC[1]','varchar(500)') != '' THEN C.value('comC[1]','varchar(500)')
+						ELSE null
+					END AS commodityCust,
+					@Usuario_id
+				FROM @P_Arcivos.nodes('/Docs/Doc[sql:variable("@P_indice")+1]/cns/cn[sql:variable("@P_indice2")+1]') AS T(C)
+
+				DECLARE @Doc_transporte_detalle_id INT = @@IDENTITY
+
+				SET @P_indice2 += 1
+			END
+
+			SET @P_indice += 1
+		END
+		
+		SET @estado = 1
+		SET @mensaje = 'Archivo adjuntado correctamente'
+
+	END TRY
+	BEGIN CATCH
+
+		DECLARE @log_id INT, @el INT = ERROR_LINE(), @en INT = ERROR_NUMBER(), @em NVARCHAR(4000) = ERROR_MESSAGE()
+		EXEC seg.log_registrar @Usuario_id, 'tco.documentos_importacion_cargar', @el, @en, @em, @log_id OUTPUT
+		SET @mensaje = CAST(@log_id AS VARCHAR)+' | '+ERROR_MESSAGE();
+		SET @estado = 0;
+		
+	END CATCH

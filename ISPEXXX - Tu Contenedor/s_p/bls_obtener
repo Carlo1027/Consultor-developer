@@ -1,0 +1,53 @@
+USE [Inland]
+GO
+/****** Object:  StoredProcedure [tco].[bls_obtener]    Script Date: 3/12/2018 10:20:27 ******/
+SET ANSI_NULLS ON
+GO
+SET QUOTED_IDENTIFIER ON
+GO
+
+ALTER PROC [tco].[bls_obtener] (
+	@Liquidacion_id INT,
+	@Tipo_operacion INT
+)
+AS
+
+SET NOCOUNT ON
+
+	--Cabecera
+	SELECT B.doc_transporte_id,
+			B.empresa_id,
+			B.numero_documento as NumeroBL, 
+			B.nave+'/'+B.viaje+'/'+B.rumbo as NaveViajeRumbo, 
+			E.razon_social as Consignatario, 
+			F.linea_id as Linea_id, 
+			F.nombre as Linea, 
+			H.estado, 
+			H.fecha_registro, 
+			COUNT(*) as contenedores
+	FROM tco.doc_transporte B
+	INNER JOIN tco.doc_transporte_detalle C ON C.doc_transporte_id = B.doc_transporte_id
+	INNER JOIN ges.empresa E ON E.empresa_id = B.empresa_id
+	INNER JOIN tco.linea F ON F.linea_id = B.linea_id
+
+	INNER JOIN tco.liquidacion_detalle G ON C.doc_transporte_detalle_id = G.doc_transporte_detalle_id
+	INNER JOIN tco.liquidacion H ON H.liquidacion_id = G.liquidacion_id
+	WHERE H.liquidacion_id = @Liquidacion_id AND B.tipo_operacion=@Tipo_operacion
+	GROUP BY B.doc_transporte_id, B.empresa_id, B.numero_documento, B.nave+'/'+B.viaje+'/'+B.rumbo, E.razon_social, F.linea_id, F.nombre, H.estado, H.fecha_registro
+	
+	--Contenedores
+	SELECT B.doc_transporte_detalle_id, 
+			B.contenedor, 
+			B.contenedor_tipo, 
+			C.descripcion as descripcion_tipo, 
+			B.contenedor_tamano, 
+			D.descripcion as descripcion_tamano, 
+			A.deposito_id,
+			E.nombre
+	FROM tco.liquidacion_detalle A
+	INNER JOIN tco.doc_transporte_detalle B ON B.doc_transporte_detalle_id = A.doc_transporte_detalle_id
+	INNER JOIN ges.catalogo C ON C.catalogo_id = B.contenedor_tipo
+	INNER JOIN ges.catalogo D ON D.catalogo_id = B.contenedor_tamano
+	INNER JOIN tco.deposito E ON E.deposito_id = A.deposito_id
+	WHERE A.liquidacion_id = @Liquidacion_id
+	

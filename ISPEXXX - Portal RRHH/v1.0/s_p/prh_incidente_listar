@@ -1,0 +1,54 @@
+USE [Inland]
+GO
+/****** Object:  StoredProcedure [prh].[incidente_listar]    Script Date: 3/12/2018 10:03:40 ******/
+SET ANSI_NULLS ON
+GO
+SET QUOTED_IDENTIFIER ON
+GO
+
+ALTER proc [prh].[incidente_listar] (
+	@usuario_id bigint,
+	@NroIncidente bigint,
+	@FechaDesde date,
+	@FechaHasta date,
+	@Page INT,
+	@Size INT,
+	@Estado char(1)
+)
+AS
+--@jpoOutputs{result : 'incidents {incidenteId : number, estado : number, estadoDescripcion : string, fechaRegistro : Date, fechaInvestigacion : Date, fechaAtencion : Date}'}
+--@jpoOutput{result : 'response {total : number}'}
+SET NOCOUNT ON 
+
+	DECLARE @fechaInicio DATETIME
+	DECLARE @fechaFin DATETIME
+	SET @fechaInicio  = CONVERT(CHAR(8),@FechaDesde,112) + ' 00:00:00'
+	SET @fechaFin = CONVERT(CHAR(8),@FechaHasta,112) + ' 23:59:59'
+
+	SELECT
+		incidente_id,
+		INC.estado estado,
+		case INC.estado
+			when 0 then 'Pendiente'
+			when 1 then 'Investigación'
+			when 2 then 'Atendido'
+		end estadoDescripcion,
+		INC.fecha_registro fecha_registro,
+		fecha_investigacion,
+		fecha_atendido
+	FROM prh.incidente INC
+	LEFT JOIN seg.usuario USU ON USU.usuario_id = INC.usuario_registro_id
+	WHERE INC.usuario_registro_id=@usuario_id AND
+		(@FechaDesde IS NULL OR (@FechaHasta IS NULL OR (INC.fecha_registro between @fechaInicio and @fechaFin))) AND
+		(@NroIncidente IS NULL OR (incidente_id = @NroIncidente)) AND
+		(@Estado IS NULL OR (INC.estado = @Estado))
+	ORDER BY 1 DESC
+	OFFSET ((@Page - 1)* @Size) ROWS
+	FETCH NEXT @Size ROWS ONLY;
+
+	SELECT COUNT(*)
+	FROM prh.incidente INC
+	WHERE INC.usuario_registro_id=@usuario_id AND
+		(@FechaDesde IS NULL OR (@FechaHasta IS NULL OR (INC.fecha_registro between @fechaInicio and @fechaFin))) AND
+		(@NroIncidente IS NULL OR (incidente_id = @NroIncidente)) AND
+		(@Estado IS NULL OR (INC.estado = @Estado))

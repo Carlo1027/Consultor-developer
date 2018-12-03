@@ -1,0 +1,97 @@
+USE [Inland]
+GO
+/****** Object:  StoredProcedure [prh].[ficha_laboral_organizacional_editar]    Script Date: 3/12/2018 09:58:53 ******/
+SET ANSI_NULLS ON
+GO
+SET QUOTED_IDENTIFIER ON
+GO
+ALTER PROC [prh].[ficha_laboral_organizacional_editar] (
+	@Usuario_id INT,
+	
+	@Ficha_laboral_organizacional_id INT,
+    @Ficha_laboral_id INT,
+    @Unique_id VARCHAR(100),
+    @Fecha_ingreso DATE,
+    @Condicion INT,
+    @Posicion VARCHAR(MAX),
+    @Job_level INT,
+    @Business_unit INT,
+    @Sede VARCHAR(MAX),
+    @Jefe VARCHAR(MAX),
+    @Coordinador  VARCHAR(MAX),
+    @Supervisor VARCHAR(MAX),
+    @Gerente VARCHAR(MAX),
+	@Correo_corporativo VARCHAR(MAX),
+    @Area VARCHAR(MAX),
+    @Sub_area VARCHAR(MAX),
+    @Leadership_role INT,
+    @Calificacion INT,
+    @Tipo_fiscalizacion INT,
+    @Li_score INT,
+    @Pi_score INT,
+    @Modalidad_contrato INT,
+    @Fecha_termino DATE,
+    @Motivo INT,
+    @Reingreso INT,
+    @Horario INT,
+    @Numero_salarios INT,
+    @Eps INT,
+	@Tipo_planilla INT,
+    @Moneda INT,
+    @Salario_mensual bigint,
+
+	@estado INT OUT,
+	@mensaje varchar(max) OUT 
+)
+AS
+
+SET NOCOUNT ON 
+
+	BEGIN TRY
+
+		UPDATE [Inland].[prh].[ficha_laboral_organizacional]
+		SET
+			unique_id = @Unique_id,
+			fecha_ingreso = @Fecha_ingreso,
+			condicion = @Condicion,
+			posicion = @Posicion,
+			job_level = @Job_level,
+			business_unit = @Business_unit,
+			sede = @Sede,
+			jefe = @Jefe,
+			coordinador = @Coordinador,
+			supervisor = @Supervisor,
+			gerente = @Gerente,
+			correo_corporativo = @Correo_corporativo,
+			area = @Area,
+			sub_area = @Sub_area,
+			leadership_role = @Leadership_role,
+			calificacion = @Calificacion,
+			tipo_fiscalizacion = @Tipo_fiscalizacion,
+			li_score = @Li_score,
+			pi_score = @Pi_score,
+			modalidad_contrato = @Modalidad_contrato,
+			fecha_termino = @Fecha_termino,
+			motivo = @Motivo,
+			reingreso = @Reingreso,
+			horario = @Horario,
+			numero_salarios = @Numero_salarios,
+			eps = @Eps,
+			tipo_planilla = @Tipo_planilla,
+			moneda = @Moneda,
+			salario_mensual = @Salario_mensual,
+    		fecha_modificacion = CURRENT_TIMESTAMP,
+    		usuario_modificacion_id = @Usuario_id
+		WHERE
+			ficha_laboral_organizacional_id = @Ficha_laboral_organizacional_id AND
+			ficha_laboral_id = @Ficha_laboral_id
+		SET @estado = 1
+		SET @mensaje = 'Información organizacional actualizada correctamente'
+			
+	END TRY
+	BEGIN CATCH
+
+		SET @estado = 0;
+		SET @mensaje = ERROR_MESSAGE();
+		
+	END CATCH

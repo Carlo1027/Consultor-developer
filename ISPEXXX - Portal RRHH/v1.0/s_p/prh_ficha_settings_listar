@@ -1,0 +1,28 @@
+USE [Inland]
+GO
+/****** Object:  StoredProcedure [prh].[ficha_settings_listar]    Script Date: 3/12/2018 10:00:25 ******/
+SET ANSI_NULLS ON
+GO
+SET QUOTED_IDENTIFIER ON
+GO
+
+ALTER proc [prh].[ficha_settings_listar] (
+	@Page INT,
+	@Size INT
+)
+AS
+--@jpoOutputs{result : 'settings {settingId : number, descripcion : string, estado : number}'}
+--@jpoOutput{result : 'response {total : number}'}
+SET NOCOUNT ON 
+
+	SELECT
+		setting_id,
+		descripcion,
+		estado
+	FROM prh.ficha_settings
+	ORDER BY 1 ASC
+	OFFSET ((@Page - 1)* @Size) ROWS
+	FETCH NEXT @Size ROWS ONLY;
+
+	SELECT COUNT(*)
+	FROM prh.ficha_settings INC

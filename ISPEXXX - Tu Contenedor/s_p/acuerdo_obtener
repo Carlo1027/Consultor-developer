@@ -1,0 +1,27 @@
+USE [Inland]
+GO
+/****** Object:  StoredProcedure [tco].[acuerdo_obtener]    Script Date: 3/12/2018 10:17:04 ******/
+SET ANSI_NULLS ON
+GO
+SET QUOTED_IDENTIFIER ON
+GO
+
+ALTER PROC [tco].[acuerdo_obtener] (
+	@Acuerdo_id INT
+)
+AS
+
+SET NOCOUNT ON
+
+	SELECT
+		acuerdo_id,
+		empresa_id,
+		linea_id,
+		servicio_id,
+		fecha_inicio,
+		fecha_fin,
+		estado
+	FROM
+		tco.acuerdo
+	WHERE
+		acuerdo_id = @Acuerdo_id

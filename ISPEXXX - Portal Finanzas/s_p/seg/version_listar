@@ -1,0 +1,35 @@
+USE [Inland]
+GO
+/****** Object:  StoredProcedure [seg].[version_listar]    Script Date: 3/12/2018 11:02:51 ******/
+SET ANSI_NULLS ON
+GO
+SET QUOTED_IDENTIFIER ON
+GO
+ALTER PROC [seg].[version_listar] (
+	@Sistema_id INT,
+	@Page INT,
+	@Size INT
+)
+AS
+--@jpoOutput{result : 'response {total : number}'}
+--@jpoOutputs{result : 'versions {version_id : number, version : string, descripcion : string, nivel : string, fecha_inicio : Date, fecha_fin : Date, fecha_despliegue : Date, estado : string}'}
+
+SET NOCOUNT ON 
+
+	SELECT COUNT(*)
+	FROM [Inland].[seg].[version]
+	WHERE sistema_id = @Sistema_id
+
+	SELECT [version_id]
+      ,[version]
+      ,[descripcion]
+	  ,[nivel]
+      ,[fecha_inicio]
+      ,[fecha_fin]
+      ,[fecha_despliegue]
+      ,[estado]
+	FROM [Inland].[seg].[version]
+	WHERE sistema_id = @Sistema_id
+	ORDER BY version_id DESC
+	OFFSET ((@Page - 1) * @Size) ROWS
+	FETCH NEXT @Size ROWS ONLY

@@ -1,0 +1,40 @@
+USE [Inland]
+GO
+/****** Object:  StoredProcedure [tco].[usuario_cambiar_estado]    Script Date: 3/12/2018 10:28:16 ******/
+SET ANSI_NULLS ON
+GO
+SET QUOTED_IDENTIFIER ON
+GO
+
+ALTER PROC [tco].[usuario_cambiar_estado] (
+	@Usuario_id INT,
+	@EstadoUsuario CHAR(1),
+	@UsuarioEditor_id INT,
+	@estado INT OUT,
+	@mensaje varchar(250) OUT 
+)
+AS
+
+SET NOCOUNT ON 
+
+BEGIN TRY
+
+	UPDATE seg.usuario SET
+		estado = @EstadoUsuario,
+		usuario_modificacion_id = @UsuarioEditor_id,
+		fecha_modificacion = CURRENT_TIMESTAMP
+	WHERE
+		usuario_id = @Usuario_id
+
+	SET @estado = 1
+	SET @mensaje = 'Contraseña cambiada correctamente'
+			
+END TRY
+BEGIN CATCH
+
+	DECLARE @log_id INT, @el INT = ERROR_LINE(), @en INT = ERROR_NUMBER(), @em NVARCHAR(4000) = ERROR_MESSAGE()
+	EXEC seg.log_registrar @Usuario_id, 'tco.usuario_cambiar_estado', @el, @en, @em, @log_id OUTPUT
+	SET @mensaje = CAST(@log_id AS VARCHAR)+' | '+ERROR_MESSAGE();
+	SET @estado = 0;
+		
+END CATCH

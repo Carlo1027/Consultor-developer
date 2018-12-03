@@ -1,0 +1,67 @@
+USE [Inland]
+GO
+/****** Object:  StoredProcedure [seg].[usuario_clave_cambiar]    Script Date: 3/12/2018 10:59:18 ******/
+SET ANSI_NULLS ON
+GO
+SET QUOTED_IDENTIFIER ON
+GO
+ALTER PROC [seg].[usuario_clave_cambiar] (
+	@Usuario_id INT,
+	@Clave VARCHAR(100),
+	@Origen char(3),
+	@estado INT OUT,
+	@mensaje varchar(250) OUT 
+)
+AS
+
+SET NOCOUNT ON 
+
+BEGIN TRY
+
+	IF @Origen = 'IND'
+	BEGIN
+
+		UPDATE seg.usuario SET
+			clave = @Clave,
+			fecha_cambio_clave = (Getdate()+60),
+			usuario_modificacion_id = @Usuario_id,
+			fecha_modificacion = CURRENT_TIMESTAMP
+		WHERE
+			usuario_id = @Usuario_id
+
+	END
+
+	IF @Origen = 'ARG'
+	BEGIN
+		
+		EXEC Argos.dbo.UPD_UsuarioClave @Usuario_id, @Clave
+
+	END
+
+	IF @Origen = 'FLG'
+	BEGIN
+
+		EXEC db_averias.dbo.Usuario_ACtualizaClave
+			@UsuarioID = @Usuario_id,
+			@Clave = @Clave,
+			@EstadoProceso = @estado OUTPUT,
+			@Mensaje = @mensaje OUTPUT
+
+			IF @estado = 0
+			BEGIN
+				SET @estado = 2 -- Se cambia el numero para identificar una advertencia, y no generar un error
+				RETURN
+			END
+
+	END
+
+	SET @estado = 1
+	SET @mensaje = 'Contraseña cambiada corréctamente'
+			
+END TRY
+BEGIN CATCH
+
+	SET @estado = 0;
+	SET @mensaje = ERROR_MESSAGE();
+		
+END CATCH

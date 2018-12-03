@@ -1,0 +1,70 @@
+USE [Inland]
+GO
+/****** Object:  StoredProcedure [ges].[usuario_rechazar_proveedor]    Script Date: 3/12/2018 10:54:31 ******/
+SET ANSI_NULLS ON
+GO
+SET QUOTED_IDENTIFIER ON
+GO
+
+ALTER proc [ges].[usuario_rechazar_proveedor] (
+	@usuario_id bigint,
+	@usuario_aprobacion_id bigint,
+	@enlace VARCHAR(MAX),
+	@estado INT OUT,
+	@mensaje varchar(max) OUT
+)
+AS
+
+SET NOCOUNT ON 
+
+	BEGIN TRY
+		
+		DECLARE @ruc VARCHAR(20)
+		DECLARE @razonSocial VARCHAR(MAX)
+		DECLARE @EmailSender VARCHAR(MAX)
+		DECLARE @Fullname VARCHAR(MAX)
+
+		DECLARE @Email_campos NVARCHAR(MAX)
+		DECLARE @PlantillaId INT
+
+		UPDATE seg.usuario
+		SET 
+			estado = '5',
+			usuario_modificacion_id = @usuario_aprobacion_id,
+			fecha_modificacion=SYSDATETIME()
+		WHERE usuario_id = @usuario_id
+
+		SELECT  @Fullname = CONCAT(USU.nombres, ' ', USU.apellido_paterno, ' ', USU.apellido_materno),
+				@ruc = EMP.documento, 
+				@razonSocial = EMP.razon_social,
+				@EmailSender = USU.correo
+		FROM seg.usuario USU
+		INNER JOIN ges.empresa EMP ON EMP.empresa_id = USU.empresa_id 
+		WHERE USU.usuario_id = @usuario_id
+
+		SET @Email_campos = N'{"nombreCompleto":"'+@Fullname+'","ruc":"'+@ruc+'","razonSocial":"'+@razonSocial+'","enlace":"'+@enlace+'"}'
+		SET @PlantillaId = 18
+
+		--4.- Sending email to user
+		EXEC ges.email_enviar
+			@plantilla_id = @PlantillaId,
+			@destinatario = @EmailSender,
+			@copia = NULL,
+			@copia_oculta = NULL,
+			@titulo = NULL,
+			@campos = @Email_campos,
+			@estado = @estado OUTPUT,
+			@mensaje = @mensaje OUTPUT
+
+		IF @estado = 1
+		BEGIN
+			SET @mensaje = 'Usuario rechazado correctamente';
+		END
+
+	END TRY
+	BEGIN CATCH
+
+		SET @mensaje = ERROR_MESSAGE();
+		SET @estado = 0;
+		
+	END CATCH

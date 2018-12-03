@@ -1,0 +1,35 @@
+USE [Inland]
+GO
+/****** Object:  StoredProcedure [seg].[usuario_obtener]    Script Date: 3/12/2018 11:01:06 ******/
+SET ANSI_NULLS ON
+GO
+SET QUOTED_IDENTIFIER ON
+GO
+ALTER PROC [seg].[usuario_obtener] (--@jpoConfig{oauth2Enable : true}
+	@Usuario_id INT
+)
+AS
+--@jpoOutput{result : 'userInfo {email : string, photoId : number, RUC : string, company : string, photoBase64 : string}'}
+--@jpoOutputs{result : 'emailConfig {emailTemplateId : number, state : string, enable : string, description : string}'}
+SET NOCOUNT ON 
+
+	-- 1.- Listing user's info
+	SELECT USU.correo, USU.adjunto_foto_id, EMP.documento, EMP.razon_social
+	FROM 
+		seg.usuario USU
+		INNER JOIN ges.empresa EMP ON USU.empresa_id = EMP.empresa_id
+	WHERE 
+		USU.estado = '1' AND
+		USU.usuario_id = @Usuario_id
+
+	-- 2.- Listing user's email configurations
+	SELECT 
+		UEP.email_plantilla_id,
+		UEP.estado,
+		UEP.habilitado,
+		EMP.descripcion
+	FROM 
+		seg.usuario_email_plantilla UEP
+		INNER JOIN ges.email_plantilla EMP ON UEP.email_plantilla_id = EMP.email_plantilla_id
+	WHERE 
+		UEP.usuario_id = @Usuario_id

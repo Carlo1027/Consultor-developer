@@ -1,0 +1,21 @@
+USE [Inland]
+GO
+/****** Object:  StoredProcedure [tco].[linea_obtener]    Script Date: 3/12/2018 10:25:55 ******/
+SET ANSI_NULLS ON
+GO
+SET QUOTED_IDENTIFIER ON
+GO
+
+ALTER proc [tco].[linea_obtener] (
+	@Linea_id INT
+)
+AS
+
+SET NOCOUNT ON
+
+	SELECT
+		A.linea_id,
+		A.estado,
+		A.nombre
+	FROM tco.linea A
+	WHERE A.linea_id = @Linea_id

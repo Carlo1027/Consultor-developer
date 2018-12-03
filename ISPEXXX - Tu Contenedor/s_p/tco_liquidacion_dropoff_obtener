@@ -1,0 +1,96 @@
+USE [Inland]
+GO
+/****** Object:  StoredProcedure [tco].[liquidacion_dropoff_obtener]    Script Date: 29/11/2018 16:49:48 ******/
+SET ANSI_NULLS ON
+GO
+SET QUOTED_IDENTIFIER ON
+GO
+
+ALTER PROC [tco].[liquidacion_dropoff_obtener] (
+	@Contenedores XML
+)
+AS
+
+SET NOCOUNT ON
+
+	DECLARE @Fecha_actual Date = GETDATE()
+
+	DECLARE @P_total INT = @Contenedores.value('count(/*)', 'int')
+
+	DECLARE @P_indice INT = 0
+
+	DECLARE @Mensaje VARCHAR(MAX) = ''
+
+	DECLARE @cobro_adicional_total INT = 0
+
+	DECLARE @Temp TABLE(
+		condicion_id INT,
+		contenedor_tipo INT,
+		contenedor_tipo_descripcion VARCHAR(MAX),
+		contenedor_tamano INT,
+		contenedor_tamano_descripcion VARCHAR(MAX),
+		indicador_ilimitado INT,
+		cupo INT,
+		indicador_dropoff INT,
+		dropoff INT,
+		tipo_moneda INT,
+		tipo_moneda_descripcion VARCHAR(MAX),
+		Usados_por_mes INT
+	)
+
+	WHILE @P_indice < @P_total
+	BEGIN
+		
+		DECLARE @contenedor_id INT
+		DECLARE @deposito_id INT
+		DECLARE @condicion_id INT
+		DECLARE @dropoff_id INT
+
+		SELECT 
+			@contenedor_id = C.value('cnt_id[1]','INT'),
+			@deposito_id = C.value('dep_id[1]','INT'),
+			@condicion_id = C.value('cnd_id[1]','INT'),
+			@dropoff_id = C.value('dro_id[1]','INT')
+		FROM @Contenedores.nodes('/Detalle[sql:variable("@P_indice")+1]') AS T(C)
+
+		IF(@condicion_id != 0)
+		BEGIN
+			DECLARE @indicador_ilimitado INT
+			DECLARE @cupo INT
+			DECLARE @indicador_dropoff INT
+			DECLARE @cobro_adicional INT
+
+			SELECT 
+				@indicador_ilimitado = indicador_ilimitado,
+				@cupo = cupo,
+				@indicador_dropoff = indicador_dropoff,
+				@cobro_adicional = dropoff 
+			FROM tco.condicion
+			WHERE condicion_id = @condicion_id
+			
+			IF(@indicador_ilimitado = 0)
+			BEGIN
+				DECLARE @Utilizados INT
+
+				DELETE FROM @Temp
+				
+				INSERT INTO @Temp (condicion_id,contenedor_tipo,contenedor_tipo_descripcion,contenedor_tamano,contenedor_tamano_descripcion,indicador_ilimitado,cupo,indicador_dropoff,dropoff,tipo_moneda,tipo_moneda_descripcion,Usados_por_mes)
+				EXEC tco.dropoff_condicion_listar @dropoff_id
+				
+				SELECT @Utilizados = Usados_por_mes FROM @Temp WHERE condicion_id = @condicion_id
+
+				IF(@Utilizados > @cupo)
+				BEGIN
+					IF(@indicador_dropoff = 1)
+					BEGIN
+						SET @cobro_adicional_total += @cobro_adicional
+					END
+				END
+			END
+		END
+		SET @P_indice += 1
+	END
+
+	SELECT nombre, @cobro_adicional_total, @Mensaje
+	FROM tco.servicio
+	WHERE servicio_id = 5

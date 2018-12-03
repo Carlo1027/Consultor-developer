@@ -1,0 +1,39 @@
+USE [Inland]
+GO
+/****** Object:  StoredProcedure [tco].[bls_liquidacion_anular]    Script Date: 3/12/2018 10:18:25 ******/
+SET ANSI_NULLS ON
+GO
+SET QUOTED_IDENTIFIER ON
+GO
+
+ALTER PROC [tco].[bls_liquidacion_anular] (
+	@Liquidacion_id INT,
+	@Usuario_id INT,
+	@estado INT OUT,
+	@mensaje varchar(max) OUT
+)
+AS
+
+SET NOCOUNT ON
+	
+BEGIN TRY
+
+	UPDATE tco.liquidacion
+	SET 
+		estado = '3',
+		usuario_modificacion_id = @Usuario_id,
+		fecha_modificacion=SYSDATETIME()
+	WHERE liquidacion_id = @Liquidacion_id
+		
+	SET @estado = 1;
+	SET @mensaje = 'Liquidación anulada correctamente';
+
+END TRY
+BEGIN CATCH
+
+	DECLARE @log_id INT, @el INT = ERROR_LINE(), @en INT = ERROR_NUMBER(), @em NVARCHAR(4000) = ERROR_MESSAGE()
+	EXEC seg.log_registrar @Usuario_id, 'tco.bls_liquidacion_anular', @el, @en, @em, @log_id OUTPUT
+	SET @mensaje = CAST(@log_id AS VARCHAR)+' | '+ERROR_MESSAGE();
+	SET @estado = 0;
+		
+END CATCH

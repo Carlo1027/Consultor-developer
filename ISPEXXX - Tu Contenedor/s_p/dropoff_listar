@@ -1,0 +1,71 @@
+USE [Inland]
+GO
+/****** Object:  StoredProcedure [tco].[dropoff_listar]    Script Date: 3/12/2018 10:24:37 ******/
+SET ANSI_NULLS ON
+GO
+SET QUOTED_IDENTIFIER ON
+GO
+
+ALTER PROC [tco].[dropoff_listar] (
+	@Cliente_id INT,
+	@Ciudad_id INT,
+	@Linea_id INT,
+	@FechaDesde DATE,
+	@FechaHasta DATE,
+	@Estado CHAR(1),
+	@Page INT,
+	@Size INT
+)
+AS
+
+SET NOCOUNT ON
+
+	DECLARE @fechaInicio DATETIME
+	DECLARE @fechaFin DATETIME
+	SET @fechaInicio  = CONVERT(CHAR(8),@FechaDesde,112) + ' 00:00:00'
+	SET @fechaFin = CONVERT(CHAR(8),@FechaHasta,112) + ' 23:59:59'
+
+	SELECT
+		DRO.dropoff_id,
+		EMP.razon_social AS cliente,
+		UBI.nombre AS ciudad,
+		LIN.nombre AS linea,
+		DRO.fecha_inicio,
+		DRO.fecha_fin,
+		DRO.estado estado,
+		CASE DRO.estado
+			WHEN 0 THEN 'Inactivo'
+			WHEN 1 THEN 'Activo'
+		END estado_descripcion,
+		DRO.deposito_id deposito_id
+	FROM
+		tco.dropoff DRO
+		INNER JOIN ges.empresa EMP ON EMP.empresa_id = DRO.empresa_id
+		INNER JOIN tco.ciudad CIU ON CIU.ciudad_id = DRO.ciudad_id
+		INNER JOIN ges.ubigeo UBI ON UBI.ubigeo_id = CIU.ciudad_id
+		INNER JOIN tco.linea LIN ON LIN.linea_id = DRO.linea_id
+	WHERE
+		(@FechaDesde IS NULL OR (DRO.fecha_inicio = @FechaDesde)) AND
+		(@FechaHasta IS NULL OR (DRO.fecha_fin = @FechaHasta)) AND
+		(@Cliente_id IS NULL OR (DRO.empresa_id = @Cliente_id)) AND
+		(@Ciudad_id IS NULL OR (DRO.ciudad_id = @Ciudad_id)) AND
+		(@Linea_id IS NULL OR (DRO.linea_id = @Linea_id)) AND
+		(@Estado IS NULL OR (DRO.estado = @Estado))
+	ORDER BY 1 DESC
+	OFFSET ((@Page - 1)* @Size) ROWS
+	FETCH NEXT @Size ROWS ONLY;
+
+	SELECT COUNT(*)
+	FROM
+		tco.dropoff DRO
+		INNER JOIN ges.empresa EMP ON EMP.empresa_id = DRO.empresa_id
+		INNER JOIN tco.ciudad CIU ON CIU.ciudad_id = DRO.ciudad_id
+		INNER JOIN ges.ubigeo UBI ON UBI.ubigeo_id = CIU.ciudad_id
+		INNER JOIN tco.linea LIN ON LIN.linea_id = DRO.linea_id
+	WHERE
+		(@FechaDesde IS NULL OR (DRO.fecha_inicio = @FechaDesde)) AND
+		(@FechaHasta IS NULL OR (DRO.fecha_fin = @FechaHasta)) AND
+		(@Cliente_id IS NULL OR (DRO.empresa_id = @Cliente_id)) AND
+		(@Ciudad_id IS NULL OR (DRO.ciudad_id = @Ciudad_id)) AND
+		(@Linea_id IS NULL OR (DRO.linea_id = @Linea_id)) AND
+		(@Estado IS NULL OR (DRO.estado = @Estado))

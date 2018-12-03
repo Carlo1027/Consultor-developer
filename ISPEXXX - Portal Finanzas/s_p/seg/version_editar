@@ -1,0 +1,50 @@
+USE [Inland]
+GO
+/****** Object:  StoredProcedure [seg].[version_editar]    Script Date: 3/12/2018 11:02:41 ******/
+SET ANSI_NULLS ON
+GO
+SET QUOTED_IDENTIFIER ON
+GO
+ALTER PROC [seg].[version_editar] (
+	@Version_id INT,
+	@Version VARCHAR(30),
+	@Descripcion VARCHAR(MAX),
+	@Fecha_inicio DATE,
+	@Fecha_fin DATE,
+	@Fecha_despliegue DATE,
+	@EstadoVersion CHAR(1),
+	@Nivel CHAR(1),
+	@Usuario_id INT,
+	@estado INT OUT,
+	@mensaje varchar(max) OUT 
+)
+AS
+
+SET NOCOUNT ON 
+
+	BEGIN TRY
+
+		UPDATE [Inland].[seg].[version]
+		SET
+			version = @Version,
+			descripcion = @Descripcion,
+			fecha_inicio = @Fecha_inicio,
+    		fecha_fin = @Fecha_fin,
+    		fecha_despliegue = @Fecha_despliegue,
+    		estado = @EstadoVersion,
+    		nivel = @Nivel,
+    		fecha_modificacion = CURRENT_TIMESTAMP,
+    		usuario_modificacion_id = @Usuario_id
+		WHERE
+			version_id = @Version_id
+
+		SET @estado = 1
+		SET @mensaje = 'Versión editada correctamente'
+			
+	END TRY
+	BEGIN CATCH
+
+		SET @estado = 0;
+		SET @mensaje = ERROR_MESSAGE();
+		
+	END CATCH

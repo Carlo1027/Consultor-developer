@@ -1,0 +1,52 @@
+USE [Inland]
+GO
+/****** Object:  StoredProcedure [tco].[bls_liquidacion_guardar]    Script Date: 3/12/2018 10:18:49 ******/
+SET ANSI_NULLS ON
+GO
+SET QUOTED_IDENTIFIER ON
+GO
+
+ALTER PROC [tco].[bls_liquidacion_guardar] (
+	@BL_id INT,
+	@Usuario_id INT,
+	@Detalle_bl xml,
+	@estado INT OUT,
+	@mensaje varchar(max) OUT
+)
+AS
+
+SET NOCOUNT ON
+	
+BEGIN TRY
+
+	DECLARE @Liquidacion_id INT
+
+	-- 1. Registrando liquidacion
+	INSERT INTO 
+		tco.liquidacion([doc_transporte_id],[estado],[usuario_registro_id])
+	VALUES
+		(@BL_id, '1', @Usuario_id)
+	SET @Liquidacion_id = @@IDENTITY
+	
+	-- 2. Registrando los contenedores
+	IF(@Detalle_bl IS NOT NULL)
+	BEGIN		
+		INSERT INTO tco.liquidacion_detalle([liquidacion_id], [doc_transporte_detalle_id], [deposito_id])
+		SELECT @Liquidacion_id,
+			C.value('cnt_id[1]','int') AS contenedor_id,
+			C.value('dep_id[1]','int') AS deposito_id
+		FROM @Detalle_bl.nodes('/Detalle') AS T(C)
+	END
+		
+	SET @estado = @Liquidacion_id;
+	SET @mensaje = 'Liquidación guardada correctamente';
+
+END TRY
+BEGIN CATCH
+
+	DECLARE @log_id INT, @el INT = ERROR_LINE(), @en INT = ERROR_NUMBER(), @em NVARCHAR(4000) = ERROR_MESSAGE()
+	EXEC seg.log_registrar @Usuario_id, 'tco.bls_liquidacion_guardar', @el, @en, @em, @log_id OUTPUT
+	SET @mensaje = CAST(@log_id AS VARCHAR)+' | '+ERROR_MESSAGE();
+	SET @estado = 0;
+		
+END CATCH

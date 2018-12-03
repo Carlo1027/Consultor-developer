@@ -1,0 +1,59 @@
+USE [Inland]
+GO
+/****** Object:  StoredProcedure [seg].[version_registrar]    Script Date: 3/12/2018 11:03:01 ******/
+SET ANSI_NULLS ON
+GO
+SET QUOTED_IDENTIFIER ON
+GO
+ALTER PROC [seg].[version_registrar] (
+	@Sistema_id INT,
+	@Version_id VARCHAR(30),
+	@Descripcion VARCHAR(MAX),
+	@Fecha_inicio DATE,
+	@Fecha_fin DATE,
+	@Fecha_despliegue DATE,
+	@EstadoVersion CHAR(1),
+	@Nivel CHAR(1),
+	@Usuario_id INT,
+	@estado INT OUT,
+	@mensaje varchar(max) OUT 
+)
+AS
+
+SET NOCOUNT ON 
+
+	BEGIN TRY
+
+		INSERT INTO [seg].[version]
+				   ([sistema_id]
+				   ,[version]
+				   ,[descripcion]
+				   ,[fecha_inicio]
+				   ,[fecha_fin]
+				   ,[fecha_despliegue]
+				   ,[estado]
+				   ,[nivel]
+				   ,[fecha_registro]
+				   ,[usuario_registro_id])
+			 VALUES
+				   (@Sistema_id
+				   ,@Version_id
+				   ,@Descripcion
+				   ,@Fecha_inicio
+				   ,@Fecha_fin
+				   ,@Fecha_despliegue
+				   ,@EstadoVersion
+				   ,@Nivel
+				   ,CURRENT_TIMESTAMP
+				   ,@Usuario_id)
+
+		SET @estado = 1
+		SET @mensaje = 'Versión registrada correctamente'
+			
+	END TRY
+	BEGIN CATCH
+
+		SET @estado = 0;
+		SET @mensaje = ERROR_MESSAGE();
+		
+	END CATCH

@@ -1,0 +1,32 @@
+USE [Inland]
+GO
+/****** Object:  StoredProcedure [ges].[adjunto_descarga]    Script Date: 3/12/2018 10:46:42 ******/
+SET ANSI_NULLS ON
+GO
+SET QUOTED_IDENTIFIER ON
+GO
+ALTER PROC [ges].[adjunto_descarga] (--@jpoConfig{disableView : true}
+	@adjunto_id INT,
+	@nombre VARCHAR(150) OUT,
+	@ubicacion VARCHAR(150) OUT,
+	@estado INT OUT,
+	@mensaje varchar(max) OUT 
+)
+AS
+
+SET NOCOUNT ON 
+
+	BEGIN TRY
+		
+		SELECT @nombre = nombre, @ubicacion = ubicacion FROM ges.adjunto WHERE adjunto_id = @adjunto_id
+		SET @estado = 1
+		SET @mensaje = '' + @adjunto_id 
+
+	END TRY
+	BEGIN CATCH
+
+		SET @estado = 0;
+		SET @mensaje = ERROR_MESSAGE();
+		
+	END CATCH
+

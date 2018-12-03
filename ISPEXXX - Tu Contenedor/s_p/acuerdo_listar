@@ -1,0 +1,65 @@
+USE [Inland]
+GO
+/****** Object:  StoredProcedure [tco].[acuerdo_listar]    Script Date: 3/12/2018 10:16:48 ******/
+SET ANSI_NULLS ON
+GO
+SET QUOTED_IDENTIFIER ON
+GO
+
+ALTER PROC [tco].[acuerdo_listar] (
+	@Cliente_id INT,
+	@Servicio_id INT,
+	@Linea_id INT,
+	@FechaDesde DATE,
+	@FechaHasta DATE,
+	@Estado CHAR(1),
+	@Page INT,
+	@Size INT
+)
+AS
+
+SET NOCOUNT ON
+
+	DECLARE @fechaInicio DATETIME
+	DECLARE @fechaFin DATETIME
+	SET @fechaInicio  = CONVERT(CHAR(8),@FechaDesde,112) + ' 00:00:00'
+	SET @fechaFin = CONVERT(CHAR(8),@FechaHasta,112) + ' 23:59:59'
+
+	SELECT
+		ACU.acuerdo_id,
+		EMP.razon_social AS cliente,
+		LIN.nombre AS linea,
+		SER.nombre AS servicio,
+		ACU.fecha_inicio,
+		ACU.fecha_fin,
+		ACU.estado estado,
+		CASE ACU.estado
+			WHEN 0 THEN 'Inactivo'
+			WHEN 1 THEN 'Activo'
+		END estado_descripcion
+	FROM
+		tco.acuerdo ACU
+		INNER JOIN ges.empresa EMP ON EMP.empresa_id = ACU.empresa_id
+		INNER JOIN tco.servicio SER ON SER.servicio_id = ACU.servicio_id
+		INNER JOIN tco.linea LIN ON LIN.linea_id = ACU.linea_id
+	WHERE
+		(@FechaDesde IS NULL OR (ACU.fecha_inicio = @FechaDesde)) AND
+		(@FechaHasta IS NULL OR (ACU.fecha_fin = @FechaHasta)) AND
+		(@Cliente_id IS NULL OR (ACU.empresa_id = @Cliente_id)) AND
+		(@Servicio_id IS NULL OR (ACU.servicio_id = @Servicio_id)) AND
+		(@Linea_id IS NULL OR (ACU.linea_id = @Linea_id)) AND
+		(@Estado IS NULL OR (ACU.estado = @Estado))
+	ORDER BY 1 DESC
+	OFFSET ((@Page - 1)* @Size) ROWS
+	FETCH NEXT @Size ROWS ONLY;
+
+	SELECT COUNT(*)
+	FROM
+		tco.acuerdo ACU
+	WHERE
+		(@FechaDesde IS NULL OR (ACU.fecha_inicio = @FechaDesde)) AND
+		(@FechaHasta IS NULL OR (ACU.fecha_fin = @FechaHasta)) AND
+		(@Cliente_id IS NULL OR (ACU.empresa_id = @Cliente_id)) AND
+		(@Servicio_id IS NULL OR (ACU.servicio_id = @Servicio_id)) AND
+		(@Linea_id IS NULL OR (ACU.linea_id = @Linea_id)) AND
+		(@Estado IS NULL OR (ACU.estado = @Estado))

@@ -1,0 +1,58 @@
+USE [Inland]
+GO
+/****** Object:  StoredProcedure [prh].[ficha_laboral_educacion_id]    Script Date: 3/12/2018 09:55:17 ******/
+SET ANSI_NULLS ON
+GO
+SET QUOTED_IDENTIFIER ON
+GO
+ALTER PROC [prh].[ficha_laboral_educacion_id]
+	@colaborador_id bigint
+AS
+ 
+SET NOCOUNT ON
+
+BEGIN
+	DECLARE @Existe INT
+	DECLARE @Ficha_laboral_id INT
+
+	SET @Existe = (SELECT count(*)
+					FROM ges.catalogo TB1
+					LEFT JOIN prh.ficha_laboral_educacion TB2 ON educacion_nivel_id=catalogo_id
+					LEFT JOIN prh.ficha_laboral TB3 ON TB2.ficha_laboral_id = TB3.ficha_laboral_id
+					WHERE catalogo_id IN (145,146,147,148,149,150,151,152) AND TB3.usuario_id=@colaborador_id)
+
+	SELECT @Ficha_laboral_id = ficha_laboral_id 
+	FROM ficha_laboral
+	WHERE usuario_id=@colaborador_id
+
+	IF(@Existe>0)
+	BEGIN
+		SELECT educacion_nivel_id, 
+			TB3.ficha_laboral_id,
+			centro_estudios, 
+			completa, 
+			carrera, 
+			fecha_inicio, 
+			fecha_fin, 
+			grado_obtenido
+		FROM ges.catalogo TB1
+		LEFT JOIN prh.ficha_laboral_educacion TB2 ON educacion_nivel_id=catalogo_id
+		LEFT JOIN prh.ficha_laboral TB3 ON TB2.ficha_laboral_id = TB3.ficha_laboral_id
+		WHERE catalogo_id IN (145,146,147,148,149,150,151,152) AND TB3.usuario_id=@colaborador_id
+	END
+	ELSE
+	BEGIN
+		SELECT catalogo_id educacion_nivel_id, 
+			@Ficha_laboral_id ficha_laboral_id, 
+			centro_estudios=null, 
+			completa=null, 
+			carrera=null, 
+			fecha_inicio=null, 
+			fecha_fin=null, 
+			grado_obtenido=null
+		FROM ges.catalogo TB1
+		LEFT JOIN prh.ficha_laboral_educacion TB2 ON educacion_nivel_id=catalogo_id
+		LEFT JOIN prh.ficha_laboral TB3 ON TB2.ficha_laboral_id = TB3.ficha_laboral_id
+		WHERE catalogo_id IN (145,146,147,148,149,150,151,152)
+	END
+END

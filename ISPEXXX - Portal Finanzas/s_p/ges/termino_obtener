@@ -1,0 +1,28 @@
+USE [Inland]
+GO
+/****** Object:  StoredProcedure [ges].[termino_obtener]    Script Date: 3/12/2018 10:53:41 ******/
+SET ANSI_NULLS ON
+GO
+SET QUOTED_IDENTIFIER ON
+GO
+ALTER PROC [ges].[termino_obtener]
+	@Unidad_negocio_id INT,
+	@Proyecto_id INT
+AS
+
+SET NOCOUNT ON
+
+BEGIN
+	SELECT
+		A.termino_id, 
+		A.menu_id,
+		B.descripcion menu_descripcion,
+		A.version, 
+		A.descripcion
+	FROM ges.termino A
+	INNER JOIN seg.menu B ON B.menu_id = A.menu_id
+	WHERE A.estado = '1'
+		AND A.unidad_negocio_id = @Unidad_negocio_id
+		AND (@Proyecto_id IS NULL OR ( A.menu_id = @Proyecto_id))
+	ORDER BY 1 DESC
+END

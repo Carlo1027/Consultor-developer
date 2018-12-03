@@ -1,0 +1,37 @@
+USE [Inland]
+GO
+/****** Object:  StoredProcedure [ges].[actualizar_ubicacion_adjunto]    Script Date: 3/12/2018 10:45:32 ******/
+SET ANSI_NULLS ON
+GO
+SET QUOTED_IDENTIFIER ON
+GO
+ALTER PROC [ges].[actualizar_ubicacion_adjunto] (
+	@Usuario_id INT,
+	@Id_adjunto INT,
+	@Archivo_Ubicacion_Upd VARCHAR(MAX),
+	@estado INT OUT,
+	@mensaje varchar(max) OUT
+)
+AS
+
+SET NOCOUNT ON 
+
+	BEGIN TRY
+		DECLARE @tamanio INT
+		SET @tamanio = LEN(@Archivo_Ubicacion_upd) - 1
+		UPDATE ges.adjunto SET 
+		ubicacion = SUBSTRING(@Archivo_Ubicacion_Upd, 1, @tamanio),
+		usuario_modificacion_id = @Usuario_id,
+		fecha_modificacion = CURRENT_TIMESTAMP
+		WHERE adjunto_id = @Id_adjunto
+			
+		SET @estado = 1;
+		SET @mensaje = 'Ubicación de archivo actualizada correctamente';
+
+	END TRY
+	BEGIN CATCH
+
+		SET @estado = 0;
+		SET @mensaje = ERROR_MESSAGE();
+		
+	END CATCH

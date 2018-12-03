@@ -1,0 +1,21 @@
+USE [Inland]
+GO
+/****** Object:  StoredProcedure [seg].[menu_listar]    Script Date: 3/12/2018 10:57:22 ******/
+SET ANSI_NULLS ON
+GO
+SET QUOTED_IDENTIFIER ON
+GO
+ALTER PROC [seg].[menu_listar]
+AS
+SET NOCOUNT ON
+
+BEGIN
+
+	SELECT 
+		menu_id, menu_padre_id, titulo, descripcion, plantilla, icono, orden, estado, tiene_id, menu_base_id
+	FROM 
+		seg.menu
+	ORDER BY
+		menu_padre_id ASC, orden ASC
+
+END

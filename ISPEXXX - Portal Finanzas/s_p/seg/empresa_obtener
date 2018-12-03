@@ -1,0 +1,26 @@
+USE [Inland]
+GO
+/****** Object:  StoredProcedure [seg].[empresa_obtener]    Script Date: 3/12/2018 10:55:21 ******/
+SET ANSI_NULLS ON
+GO
+SET QUOTED_IDENTIFIER ON
+GO
+
+ALTER PROC [seg].[empresa_obtener]
+@Documento VARCHAR(15),
+@Unidad_negocio_id INT,
+@Tipo_documento INT,
+@Estado INT OUT,
+@Mensaje VARCHAR(MAX) OUT
+AS
+
+SET NOCOUNT ON
+
+IF (SELECT COUNT(1) FROM ges.empresa (NOLOCK) WHERE unidad_negocio_id=@Unidad_negocio_id AND estado='1' AND tipo_documento = @Tipo_documento AND documento=@Documento)=0
+BEGIN
+	SELECT @Estado=0,@Mensaje='No existe la empresa'
+END
+ELSE
+BEGIN
+	SELECT @Estado=1, @Mensaje = rtrim(razon_social) FROM ges.empresa (NOLOCK) WHERE unidad_negocio_id=@Unidad_negocio_id AND estado='1' AND tipo_documento = @Tipo_documento AND documento=@Documento
+END

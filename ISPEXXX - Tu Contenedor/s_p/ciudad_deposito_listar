@@ -1,0 +1,23 @@
+USE [Inland]
+GO
+/****** Object:  StoredProcedure [tco].[ciudad_deposito_listar]    Script Date: 3/12/2018 10:21:11 ******/
+SET ANSI_NULLS ON
+GO
+SET QUOTED_IDENTIFIER ON
+GO
+
+ALTER PROC [tco].[ciudad_deposito_listar] (
+	@Ciudad_id INT
+)
+AS
+
+SET NOCOUNT ON
+
+	SELECT
+		A.deposito_id,
+		A.nombre,
+		A.ciudad_id
+	FROM tco.deposito A
+	WHERE 
+		(@Ciudad_id IS NULL OR (A.ciudad_id = @Ciudad_id))
+	ORDER BY 2 ASC

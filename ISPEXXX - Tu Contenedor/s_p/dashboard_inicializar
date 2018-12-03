@@ -1,0 +1,17 @@
+USE [Inland]
+GO
+/****** Object:  StoredProcedure [tco].[dashboard_inicializar]    Script Date: 3/12/2018 10:22:26 ******/
+SET ANSI_NULLS ON
+GO
+SET QUOTED_IDENTIFIER ON
+GO
+ALTER PROC [tco].[dashboard_inicializar]
+	@Cliente_id VARCHAR(MAX),
+	@FechaDesde DATE,
+	@FechaHasta DATE
+AS
+
+SET NOCOUNT ON
+
+	-- Listando liquidaciones Importación
+	EXEC tco.bls_dashboard @Cliente_id, @FechaDesde, @FechaHasta

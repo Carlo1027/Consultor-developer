@@ -1,0 +1,138 @@
+USE [Inland]
+GO
+/****** Object:  StoredProcedure [tco].[bls_dashboard]    Script Date: 3/12/2018 10:18:04 ******/
+SET ANSI_NULLS ON
+GO
+SET QUOTED_IDENTIFIER ON
+GO
+
+ALTER PROC [tco].[bls_dashboard] (
+	@Cliente_id VARCHAR(MAX),
+	@FechaDesde DATE,
+	@FechaHasta DATE
+)
+AS
+
+SET NOCOUNT ON
+
+	DECLARE @fechaInicio DATETIME
+	DECLARE @fechaFin DATETIME
+	SET @fechaInicio  = CONVERT(CHAR(8),@FechaDesde,112) + ' 00:00:00'
+	SET @fechaFin = CONVERT(CHAR(8),@FechaHasta,112) + ' 23:59:59'
+
+	DECLARE @EstadoPendiente INT
+	SET @EstadoPendiente = 0
+
+	DECLARE @TipoOperacionImpo INT
+	DECLARE @TipoOperacionExpo INT
+	SET @TipoOperacionImpo = 180
+	SET @TipoOperacionExpo = 181
+
+	DECLARE @T_impo TABLE(
+			BL_id INT,
+			Estado char(1)
+		)
+
+	DECLARE @BLS_Pendiente INT,
+			@BLS_Liquidados INT,
+			@BLS_Facturados INT,
+			@Booking_Pendiente INT,
+			@Booking_Liquidados INT,
+			@Booking_Facturados INT
+
+	--Liquidaciones Pendientes
+	--BL
+	SELECT @BLS_Pendiente = COUNT(B.doc_transporte_id)
+	FROM tco.doc_transporte B
+	INNER JOIN tco.doc_transporte_detalle C ON C.doc_transporte_id = B.doc_transporte_id
+	INNER JOIN ges.empresa E ON E.empresa_id = B.empresa_id
+	INNER JOIN tco.linea F ON F.linea_id = B.linea_id
+
+	WHERE not exists (SELECT 1 FROM tco.liquidacion_detalle G  
+	LEFT JOIN tco.liquidacion H ON H.liquidacion_id = G.liquidacion_id
+	WHERE C.doc_transporte_detalle_id = G.doc_transporte_detalle_id AND H.estado != 3)
+	AND E.documento = @Cliente_id AND B.tipo_operacion=@TipoOperacionImpo AND
+	(@FechaDesde IS NULL OR (@FechaHasta IS NULL OR (B.fecha_registro between @fechaInicio and @fechaFin)))
+
+	--Booking
+	SELECT @Booking_Pendiente = COUNT(B.doc_transporte_id)
+	FROM tco.doc_transporte B
+	INNER JOIN tco.doc_transporte_detalle C ON C.doc_transporte_id = B.doc_transporte_id
+	INNER JOIN ges.empresa E ON E.empresa_id = B.empresa_id
+	INNER JOIN tco.linea F ON F.linea_id = B.linea_id
+
+	WHERE not exists (SELECT 1 FROM tco.liquidacion_detalle G  
+	LEFT JOIN tco.liquidacion H ON H.liquidacion_id = G.liquidacion_id
+	WHERE C.doc_transporte_detalle_id = G.doc_transporte_detalle_id AND H.estado != 3)
+	AND E.documento = @Cliente_id AND B.tipo_operacion=@TipoOperacionExpo AND
+	(@FechaDesde IS NULL OR (@FechaHasta IS NULL OR (B.fecha_registro between @fechaInicio and @fechaFin)))
+
+	--Liquidaciones Realizadas
+	--BL
+	SELECT @BLS_Liquidados = COUNT(B.doc_transporte_id)
+	FROM tco.doc_transporte B
+	INNER JOIN tco.doc_transporte_detalle C ON C.doc_transporte_id = B.doc_transporte_id
+	INNER JOIN ges.empresa E ON E.empresa_id = B.empresa_id
+	INNER JOIN tco.linea F ON F.linea_id = B.linea_id
+
+	INNER JOIN tco.liquidacion_detalle G ON C.doc_transporte_detalle_id = G.doc_transporte_detalle_id
+	INNER JOIN tco.liquidacion H ON H.liquidacion_id = G.liquidacion_id
+	WHERE H.estado = 1 AND E.documento = @Cliente_id AND B.tipo_operacion=@TipoOperacionImpo AND
+	(@FechaDesde IS NULL OR (@FechaHasta IS NULL OR (H.fecha_registro between @fechaInicio and @fechaFin)))
+
+	--Booking
+	SELECT @Booking_Liquidados = COUNT(B.doc_transporte_id)
+	FROM tco.doc_transporte B
+	INNER JOIN tco.doc_transporte_detalle C ON C.doc_transporte_id = B.doc_transporte_id
+	INNER JOIN ges.empresa E ON E.empresa_id = B.empresa_id
+	INNER JOIN tco.linea F ON F.linea_id = B.linea_id
+
+	INNER JOIN tco.liquidacion_detalle G ON C.doc_transporte_detalle_id = G.doc_transporte_detalle_id
+	INNER JOIN tco.liquidacion H ON H.liquidacion_id = G.liquidacion_id
+	WHERE H.estado = 1 AND E.documento = @Cliente_id AND B.tipo_operacion=@TipoOperacionExpo AND
+	(@FechaDesde IS NULL OR (@FechaHasta IS NULL OR (H.fecha_registro between @fechaInicio and @fechaFin)))
+
+	--Liquidaciones Facturadas
+	--BL
+	SELECT @BLS_Facturados = COUNT(B.doc_transporte_id)
+	FROM tco.doc_transporte B
+	INNER JOIN tco.doc_transporte_detalle C ON C.doc_transporte_id = B.doc_transporte_id
+	INNER JOIN ges.empresa E ON E.empresa_id = B.empresa_id
+	INNER JOIN tco.linea F ON F.linea_id = B.linea_id
+
+	INNER JOIN tco.liquidacion_detalle G ON C.doc_transporte_detalle_id = G.doc_transporte_detalle_id
+	INNER JOIN tco.liquidacion H ON H.liquidacion_id = G.liquidacion_id
+	WHERE H.estado = 2 AND E.documento = @Cliente_id AND B.tipo_operacion=@TipoOperacionImpo AND
+	(@FechaDesde IS NULL OR (@FechaHasta IS NULL OR (H.fecha_registro between @fechaInicio and @fechaFin)))
+
+	--Booking
+	SELECT @Booking_Facturados = COUNT(B.doc_transporte_id)
+	FROM tco.doc_transporte B
+	INNER JOIN tco.doc_transporte_detalle C ON C.doc_transporte_id = B.doc_transporte_id
+	INNER JOIN ges.empresa E ON E.empresa_id = B.empresa_id
+	INNER JOIN tco.linea F ON F.linea_id = B.linea_id
+
+	INNER JOIN tco.liquidacion_detalle G ON C.doc_transporte_detalle_id = G.doc_transporte_detalle_id
+	INNER JOIN tco.liquidacion H ON H.liquidacion_id = G.liquidacion_id
+	WHERE H.estado = 2 AND E.documento = @Cliente_id AND B.tipo_operacion=@TipoOperacionExpo AND
+	(@FechaDesde IS NULL OR (@FechaHasta IS NULL OR (H.fecha_registro between @fechaInicio and @fechaFin)))
+
+	SELECT @BLS_Pendiente, @BLS_Liquidados, @BLS_Facturados, @Booking_Pendiente, @Booking_Liquidados, @Booking_Facturados
+
+	--Liquidaciones Facturadas
+	SELECT 
+		year(H.fecha_registro) Anio,
+		month(H.fecha_registro) Mes,
+		--COUNT(B.doc_transporte_id) CantidadDevolucion,
+		SUM(CASE B.tipo_operacion WHEN 180 THEN 1 ELSE 0 END),
+		SUM(CASE B.tipo_operacion WHEN 181 THEN 1 ELSE 0 END)
+	FROM tco.doc_transporte B
+	INNER JOIN tco.doc_transporte_detalle C ON C.doc_transporte_id = B.doc_transporte_id
+	INNER JOIN ges.empresa E ON E.empresa_id = B.empresa_id
+	INNER JOIN tco.linea F ON F.linea_id = B.linea_id
+
+	INNER JOIN tco.liquidacion_detalle G ON C.doc_transporte_detalle_id = G.doc_transporte_detalle_id
+	INNER JOIN tco.liquidacion H ON H.liquidacion_id = G.liquidacion_id
+	WHERE H.estado = 2 AND E.documento = @Cliente_id AND
+	(@FechaDesde IS NULL OR (@FechaHasta IS NULL OR (H.fecha_registro between @fechaInicio and @fechaFin)))
+	GROUP BY year(H.fecha_registro), month(H.fecha_registro)

@@ -1,0 +1,89 @@
+USE [Inland]
+GO
+/****** Object:  StoredProcedure [ges].[usuario_aprobar_proveedor]    Script Date: 3/12/2018 10:54:18 ******/
+SET ANSI_NULLS ON
+GO
+SET QUOTED_IDENTIFIER ON
+GO
+
+ALTER proc [ges].[usuario_aprobar_proveedor] (
+	@usuario_id bigint,
+	@usuario_aprobacion_id bigint,
+	@enlace VARCHAR(MAX),
+	@estado INT OUT,
+	@mensaje varchar(max) OUT 
+)
+AS
+
+SET NOCOUNT ON 
+
+	BEGIN TRY
+		
+		DECLARE @ruc VARCHAR(20)
+		DECLARE @razonSocial VARCHAR(MAX)
+		DECLARE @EmailSender VARCHAR(MAX)
+		DECLARE @Fullname VARCHAR(MAX)
+
+		DECLARE @Email_campos NVARCHAR(MAX)
+		DECLARE @PlantillaId INT
+
+		SELECT  @Fullname = CONCAT(USU.nombres, ' ', USU.apellido_paterno, ' ', USU.apellido_materno),
+				@ruc = EMP.documento, 
+				@razonSocial = EMP.razon_social,
+				@EmailSender = USU.correo
+		FROM seg.usuario USU
+		INNER JOIN ges.empresa EMP ON EMP.empresa_id = USU.empresa_id 
+		WHERE USU.usuario_id = @usuario_id
+
+		DECLARE @NumeroUsuarios INT
+		SET @NumeroUsuarios = (SELECT COUNT(*) FROM seg.usuario USU INNER JOIN ges.empresa EMP ON USU.empresa_id = EMP.empresa_id WHERE EMP.documento=@ruc AND USU.estado=1);
+
+		if( @NumeroUsuarios < 5 ) OR (@NumeroUsuarios >= 5 AND @ruc = '20107012011') -- RUC APM
+		BEGIN
+			UPDATE seg.usuario
+			SET 
+				estado = '1',
+				usuario_modificacion_id = @usuario_aprobacion_id,
+				fecha_modificacion=SYSDATETIME()
+			WHERE usuario_id = @usuario_id
+
+			SELECT  @Fullname = CONCAT(USU.nombres, ' ', USU.apellido_paterno, ' ', USU.apellido_materno),
+					@ruc = EMP.documento, 
+					@razonSocial = EMP.razon_social,
+					@EmailSender = USU.correo
+			FROM seg.usuario USU
+			INNER JOIN ges.empresa EMP ON EMP.empresa_id = USU.empresa_id 
+			WHERE USU.usuario_id = @usuario_id
+
+			SET @Email_campos = N'{"nombreCompleto":"'+@Fullname+'","ruc":"'+@ruc+'","razonSocial":"'+@razonSocial+'","enlace":"'+@enlace+'"}'
+			SET @PlantillaId = 6
+
+			--4.- Sending email to user
+			EXEC ges.email_enviar
+				@plantilla_id = 14,
+				@destinatario = @EmailSender,
+				@copia = NULL,
+				@copia_oculta = NULL,
+				@titulo = NULL,
+				@campos = @Email_campos,
+				@estado = @estado OUTPUT,
+				@mensaje = @mensaje OUTPUT
+
+			IF @estado = 1
+			BEGIN
+				SET @mensaje = 'Usuario aprobado correctamente';
+			END
+		END
+		ELSE
+		BEGIN
+			SET @estado = 0;
+			SET @mensaje = 'La empresa ha alcanzado el máximo de usuarios aprobados (5)';
+		END
+
+	END TRY
+	BEGIN CATCH
+
+		SET @mensaje = ERROR_MESSAGE();
+		SET @estado = 0;
+		
+	END CATCH

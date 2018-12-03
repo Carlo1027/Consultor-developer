@@ -1,0 +1,50 @@
+USE [Inland]
+GO
+/****** Object:  StoredProcedure [prh].[ficha_laboral_estado_editar]    Script Date: 3/12/2018 09:56:05 ******/
+SET ANSI_NULLS ON
+GO
+SET QUOTED_IDENTIFIER ON
+GO
+ALTER PROC [prh].[ficha_laboral_estado_editar] (
+	@Usuario_id INT,
+
+	@estado INT OUT,
+	@mensaje varchar(max) OUT 
+)
+AS
+
+SET NOCOUNT ON 
+
+	BEGIN TRY
+
+		DECLARE @EstadoFicha INT
+
+		SELECT @EstadoFicha = estado
+		FROM prh.ficha_laboral
+		WHERE usuario_id=@Usuario_id
+
+		IF(@EstadoFicha = 0)
+		BEGIN
+			UPDATE prh.ficha_laboral
+			SET 
+				estado = 1,
+				usuario_modificacion_id = @Usuario_id,
+				fecha_modificacion=SYSDATETIME()
+			WHERE usuario_id = @Usuario_id
+
+			SET @estado = 1
+			SET @mensaje = 'Bienvenido(a), su ficha ha sido activada'
+		END
+		ELSE 
+		BEGIN
+			SET @estado = 0
+			SET @mensaje = 'El usuario ya se encuentra activo'
+		END		
+			
+	END TRY
+	BEGIN CATCH
+
+		SET @estado = 0;
+		SET @mensaje = ERROR_MESSAGE();
+		
+	END CATCH

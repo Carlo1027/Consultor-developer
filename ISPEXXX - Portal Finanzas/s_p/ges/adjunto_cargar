@@ -1,0 +1,36 @@
+USE [Inland]
+GO
+/****** Object:  StoredProcedure [ges].[adjunto_cargar]    Script Date: 3/12/2018 10:46:11 ******/
+SET ANSI_NULLS ON
+GO
+SET QUOTED_IDENTIFIER ON
+GO
+ALTER PROC [ges].[adjunto_cargar] (--@jpoConfig{disableView : true, autocommit : false}
+	@Usuario_id INT,
+	@Archivo_Nombre VARCHAR(MAX),
+	@Archivo_Formato VARCHAR(10),
+	@Archivo_Peso INT,
+	@Archivo_Ubicacion VARCHAR(MAX),
+	@attached_id INT OUT,
+	@estado INT OUT,
+	@mensaje varchar(max) OUT 
+)
+AS
+
+SET NOCOUNT ON 
+
+	BEGIN TRY
+
+		INSERT INTO ges.adjunto (nombre, formato, peso, ubicacion, usuario_registro_id) VALUES (@Archivo_Nombre, @Archivo_Formato, @Archivo_Peso, @Archivo_Ubicacion, @Usuario_id)
+		SET @attached_id = @@IDENTITY
+			
+		SET @estado = 1
+		SET @mensaje = 'Archivo adjuntado correctamente'
+
+	END TRY
+	BEGIN CATCH
+
+		SET @estado = 0;
+		SET @mensaje = ERROR_MESSAGE();
+		
+	END CATCH

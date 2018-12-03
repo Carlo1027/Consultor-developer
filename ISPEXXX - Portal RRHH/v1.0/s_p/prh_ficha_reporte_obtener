@@ -1,0 +1,75 @@
+USE [Inland]
+GO
+/****** Object:  StoredProcedure [prh].[ficha_reporte_obtener]    Script Date: 3/12/2018 09:59:37 ******/
+SET ANSI_NULLS ON
+GO
+SET QUOTED_IDENTIFIER ON
+GO
+ALTER PROC [prh].[ficha_reporte_obtener] (
+@Estado char(1)
+) AS
+--@jpoOutputs{result : 'reporte { nombres : string, apellidoPaterno : string, apellidoMaterno : string, genero : number, fechaNacimiento : Date, documentoIdentidad : number, numeroDocumentoIdentidad : string, estadoCivil : number, telefonoDomicilio : string, telefonoCelular : string, nacimientoDistrito : string, nacimientoProvincia : string, nacimientoDepartamento : string, nacimientoPais : string, breveteCategoria : string, breveteFechaExpiracion : string, breveteNumero : string, correoPersonal : string, domicilioDireccion : string, domicilioDistrito : string, domicilioProvincia : string, domicilioDepartamento : string, domicilioPais : string, domicilioReferencia : string, uniqueID : string, fechaIngreso : Date, condicion : number, posicion : string, jobLevel : number, businessUnit : number, sede : string, jefe : string, coordinador : string, supervisor : string, gerente : string, correoCorporativo : string, area : string, subArea : string, leadershipRole : number, calificacion : number, tipoFiscalizacion : number, liScore : string, piScore : number, modalidadContrato : number, fechaTermino : Date, motivo : number, reingreso : number, horario : number, numeroSalarios : number, eps : number, tipoPlanilla : number, moneda : number, salario : string}'}
+SET NOCOUNT ON
+
+BEGIN
+	SELECT 
+	  USU.nombres
+      ,USU.apellido_paterno
+      ,USU.apellido_materno
+      ,FLAB.genero
+      ,FLAB.fecha_nacimiento
+      ,FLAB.documento_identidad
+      ,FLAB.numero_documento_identidad
+      ,FLAB.estado_civil
+      ,FLAB.telefono_domicilio
+      ,FLAB.telefono_celular
+      ,FLAB.nacimiento_distrito
+      ,FLAB.nacimiento_provincia
+      ,FLAB.nacimiento_departamento
+      ,FLAB.nacimiento_pais
+      ,FLAB.brevete_categoria
+      ,FLAB.brevete_fecha_expiracion
+      ,FLAB.brevete_numero
+      ,USU.correo
+      ,FLAB.domicilio_direccion
+      ,FLAB.domicilio_distrito
+      ,FLAB.domicilio_provincia
+      ,FLAB.domicilio_departamento
+      ,FLAB.domicilio_pais
+      ,FLAB.domicilio_referencia
+
+	  ,FORG.unique_id
+      ,FORG.fecha_ingreso
+      ,FORG.condicion
+      ,FORG.posicion
+      ,FORG.job_level
+      ,FORG.business_unit
+      ,FORG.sede
+      ,FORG.jefe
+      ,FORG.coordinador
+      ,FORG.supervisor
+      ,FORG.gerente
+	  ,FORG.correo_corporativo
+      ,FORG.area
+      ,FORG.sub_area
+      ,FORG.leadership_role
+      ,FORG.calificacion
+      ,FORG.tipo_fiscalizacion
+      ,FORG.li_score
+      ,FORG.pi_score
+      ,FORG.modalidad_contrato
+      ,FORG.fecha_termino
+      ,FORG.motivo
+      ,FORG.reingreso
+      ,FORG.horario
+      ,FORG.numero_salarios
+      ,FORG.eps
+	  ,FORG.tipo_planilla
+      ,FORG.moneda
+      ,FORG.salario_mensual
+	  ,FLAB.estado
+	FROM prh.ficha_laboral FLAB
+	INNER JOIN prh.ficha_laboral_organizacional FORG ON FORG.ficha_laboral_id = FLAB.ficha_laboral_id
+	INNER JOIN seg.usuario USU ON USU.usuario_id = FLAB.usuario_id
+	WHERE (@Estado IS NULL OR (FLAB.estado = @Estado))
+END

@@ -1,0 +1,73 @@
+USE [Inland]
+GO
+/****** Object:  StoredProcedure [seg].[notificacion_editar]    Script Date: 3/12/2018 10:57:37 ******/
+SET ANSI_NULLS ON
+GO
+SET QUOTED_IDENTIFIER ON
+GO
+ALTER PROC [seg].[notificacion_editar] (
+	@Notificacion_id INT,
+	@Titulo VARCHAR(50),
+	@Subtitulo VARCHAR(MAX),
+	@Descripcion VARCHAR(MAX),
+	@Icono VARCHAR(100),
+	@Nivel CHAR(1),
+	@Unica_vez CHAR(1),
+	@Unica_alerta CHAR(1),
+	@Fecha_caducidad DATETIME,
+	@EstadoNotificacion CHAR(1),
+	@Roles VARCHAR(MAX), -- [{"rol_id":4},{"rol_id":5}]
+	@Usuario_id INT,
+	@estado INT OUT,
+	@mensaje varchar(max) OUT 
+)
+AS
+
+SET NOCOUNT ON 
+
+	BEGIN TRY
+
+		-- 1. Updating notification
+		UPDATE [seg].[notificacion]
+		SET [titulo] = @Titulo
+			,[subtitulo] = @Subtitulo
+			,[descripcion] = @Descripcion
+			,[icono] = @Icono
+			,[nivel] = @Nivel
+			,[unica_vez] = @Unica_vez
+			,[unica_alerta] = @Unica_alerta
+			,[fecha_caducidad] = @Fecha_caducidad
+			,[estado] = @EstadoNotificacion
+			,[fecha_modificacion] = CURRENT_TIMESTAMP
+			,[usuario_modificacion_id] = @Usuario_id
+		WHERE notificacion_id = @Notificacion_id
+		
+		-- 2. Getting roles
+		DECLARE @T_roles TABLE(
+			parent_ID INT,
+			rol_id INT
+		)
+
+		INSERT @T_roles
+		EXEC [ges].[json_listar] @Roles
+
+		-- 3. Deleting and Inserting roles
+		DELETE FROM [seg].[notificacion_rol] WHERE notificacion_id = @Notificacion_id
+
+		INSERT INTO 
+			[seg].[notificacion_rol] ([notificacion_id], [rol_id])
+		SELECT
+			@Notificacion_id, rol_id
+		FROM
+			@T_roles
+
+		SET @estado = 1
+		SET @mensaje = 'Notificación editada correctamente'
+			
+	END TRY
+	BEGIN CATCH
+
+		SET @estado = 0;
+		SET @mensaje = ERROR_MESSAGE();
+		
+	END CATCH

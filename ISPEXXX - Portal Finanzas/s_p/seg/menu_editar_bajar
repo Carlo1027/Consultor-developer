@@ -1,0 +1,44 @@
+USE [Inland]
+GO
+/****** Object:  StoredProcedure [seg].[menu_editar_bajar]    Script Date: 3/12/2018 10:56:33 ******/
+SET ANSI_NULLS ON
+GO
+SET QUOTED_IDENTIFIER ON
+GO
+ALTER PROC [seg].[menu_editar_bajar]
+	@Menu_id INT,
+	@estado INT OUT,
+	@mensaje varchar(max) OUT 
+AS
+
+SET NOCOUNT ON 
+
+BEGIN TRY
+
+	DECLARE @P_menu_padre_id INT;
+	DECLARE @P_orden INT;
+	DECLARE @P_menu_id INT;
+
+	SELECT @P_menu_padre_id = menu_padre_id, @P_orden = orden + 1 FROM seg.menu WHERE menu_id = @Menu_id;
+	IF @P_menu_padre_id IS NULL
+	BEGIN
+		SELECT @P_menu_id = menu_id FROM seg.menu WHERE menu_padre_id IS NULL AND orden = @P_orden;
+	END
+	ELSE
+	BEGIN
+		SELECT @P_menu_id = menu_id FROM seg.menu WHERE menu_padre_id = @P_menu_padre_id AND orden = @P_orden;
+	END
+	UPDATE seg.menu SET orden = orden - 1 where menu_id = @P_menu_id;
+
+	UPDATE seg.menu SET orden = orden + 1 where menu_id = @Menu_id;
+
+	SET @estado = 1;
+	SET @mensaje = 'Registro bajado correctamente';
+			
+END TRY
+BEGIN CATCH
+
+	SET @estado = 0;
+	SET @mensaje = ERROR_MESSAGE();
+		
+END CATCH

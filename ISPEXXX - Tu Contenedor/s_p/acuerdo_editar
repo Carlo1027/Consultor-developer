@@ -1,0 +1,50 @@
+USE [Inland]
+GO
+/****** Object:  StoredProcedure [tco].[acuerdo_editar]    Script Date: 3/12/2018 10:16:07 ******/
+SET ANSI_NULLS ON
+GO
+SET QUOTED_IDENTIFIER ON
+GO
+
+ALTER PROC [tco].[acuerdo_editar] (
+	@Acuerdo_id INT,
+	@Cliente_id INT,
+	@Servicio_id INT,
+	@Linea_id INT,
+	@Fecha_inicio DATE,
+	@Fecha_fin DATE,
+	@Activo CHAR(1),
+	@Usuario_id INT,
+	@estado INT OUT,
+	@mensaje varchar(max) OUT 
+)
+AS
+SET NOCOUNT ON
+BEGIN TRY
+
+	-- 1. Editando el acuerdo
+	UPDATE 
+		tco.acuerdo
+	SET    [empresa_id] = @Cliente_id
+		  ,[servicio_id] = @Servicio_id
+		  ,[linea_id] = @Linea_id
+		  ,[fecha_inicio] = @Fecha_inicio
+		  ,[fecha_fin] = @Fecha_fin
+		  ,[estado] = @Activo
+		  ,[fecha_modificacion] = CURRENT_TIMESTAMP
+		  ,[usuario_modificacion_id] = @Usuario_id
+	 WHERE 
+		acuerdo_id = @Acuerdo_id
+
+	SET @estado = 1
+	SET @mensaje = 'Se editó la exoneración correctamente'
+		
+END TRY
+BEGIN CATCH
+	
+	DECLARE @log_id INT, @el INT = ERROR_LINE(), @en INT = ERROR_NUMBER(), @em NVARCHAR(4000) = ERROR_MESSAGE()
+	EXEC seg.log_registrar @Usuario_id, 'tco.acuerdo_editar', @el, @en, @em, @log_id OUTPUT
+	SET @mensaje = CAST(@log_id AS VARCHAR)+' | '+ERROR_MESSAGE();
+	SET @estado = 0;
+
+END CATCH

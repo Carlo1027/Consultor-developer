@@ -1,0 +1,92 @@
+USE [Inland]
+GO
+/****** Object:  StoredProcedure [seg].[usuario_editar]    Script Date: 3/12/2018 11:00:17 ******/
+SET ANSI_NULLS ON
+GO
+SET QUOTED_IDENTIFIER ON
+GO
+ALTER PROC [seg].[usuario_editar] (--@jpoConfig{oauth2Enable : true}
+	@Usuario_id INT,
+	@Correo VARCHAR(100),
+	@Nombre VARCHAR(100),
+	@Apellido_paterno VARCHAR(100),
+	@Apellido_materno VARCHAR(100),
+	@Ruc VARCHAR(100),
+	@Empresa VARCHAR(100),
+	@estado INT OUT,
+	@mensaje varchar(max) OUT 
+)
+AS
+
+SET NOCOUNT ON 
+
+	BEGIN TRY
+
+		DECLARE @UsuarioCorreo_id INT
+		SET @Correo = LOWER(@Correo)
+
+		-- 1. Obteniendo una cantidad de registros por fecha seleccionada
+		SELECT @UsuarioCorreo_id = usuario_id
+		FROM
+			seg.usuario
+		WHERE
+			LOWER(correo) = @Correo AND
+			usuario_id <> @Usuario_id
+
+		-- 3. Validando si el usuario no existe
+		IF @UsuarioCorreo_id IS NULL
+		BEGIN
+			
+			DECLARE @Empresa_id INT
+
+			-- 3.1. Valida si existe el RUC ingresado si, no existe lo crea, si existe lo actualiza
+			SELECT @Empresa_id = empresa_id
+			FROM
+				ges.empresa
+			WHERE
+				documento = @Ruc
+
+			IF @Empresa_id > 0
+			BEGIN
+				UPDATE ges.empresa SET razon_social = @Empresa, usuario_modificacion_id = @Usuario_id, fecha_modificacion = CURRENT_TIMESTAMP WHERE empresa_id = @Empresa_id
+			END
+			ELSE
+			BEGIN
+				INSERT INTO ges.empresa (documento, razon_social, estado, usuario_registro_id) 
+				VALUES (@Ruc, @Empresa, '1', @Usuario_id)
+				SET @Empresa_id = @@IDENTITY
+			END
+
+			-- 3.2. Registra al usuario nuevo
+			UPDATE
+				seg.usuario
+			SET
+				correo = @Correo,
+				nombres = @Nombre,
+				apellido_paterno = @Apellido_paterno,
+				apellido_materno = @Apellido_materno,
+				empresa_id = @Empresa_id,
+				usuario_modificacion_id = @Usuario_id,
+				fecha_modificacion = CURRENT_TIMESTAMP
+			WHERE
+				usuario_id = @Usuario_id
+
+			SET @estado = 1;
+			SET @mensaje = 'Usuario modificado corréctamente';
+
+		END
+		ELSE
+		BEGIN
+
+			SET @estado = 2;
+			SET @mensaje = 'Ya existe un usuario con el mismo correo, ingrese otro';
+
+		END
+			
+	END TRY
+	BEGIN CATCH
+
+		SET @estado = 0;
+		SET @mensaje = ERROR_MESSAGE();
+		
+	END CATCH

@@ -1,0 +1,65 @@
+USE [Inland]
+GO
+/****** Object:  StoredProcedure [prh].[incidente_atender]    Script Date: 3/12/2018 10:03:00 ******/
+SET ANSI_NULLS ON
+GO
+SET QUOTED_IDENTIFIER ON
+GO
+
+ALTER proc [prh].[incidente_atender] (
+	@usuario_atencion_id bigint,
+	@incidente_id bigint,
+	@comentario varchar(max),
+	@enlace VARCHAR(MAX),
+	@estado INT OUT,
+	@mensaje varchar(max) OUT 
+)
+AS
+
+SET NOCOUNT ON 
+
+BEGIN TRY
+	DECLARE @Fullname VARCHAR(MAX)
+	DECLARE @FechaRegistro VARCHAR(MAX)
+	DECLARE @EmailSender VARCHAR(MAX)
+	DECLARE @Email_campos NVARCHAR(MAX)
+	DECLARE @PlantillaId INT
+
+	UPDATE prh.incidente
+	SET 
+		usuario_atendido_id = @usuario_atencion_id,
+		comentario_atendido = iif(@comentario is null,null,@comentario),
+		estado = 2,
+		fecha_atendido=SYSDATETIME()
+	WHERE incidente_id = @incidente_id
+
+	-- Datos del usuario que registró el incidente
+	SELECT @Fullname = CONCAT(USU.nombres, ' ', USU.apellido_paterno, ' ', USU.apellido_materno),
+		   @EmailSender = USU.correo,
+		   @FechaRegistro = CONVERT(VARCHAR(10),INC.fecha_registro,103)
+	FROM seg.usuario USU
+	INNER JOIN prh.incidente INC ON INC.usuario_registro_id = USU.usuario_id
+	WHERE INC.incidente_id = @incidente_id
+
+	--Correo al usuario por proceso concluido
+	SET @PlantillaId = 17
+	SET @Email_campos = N'{"nombreCompleto":"'+@Fullname+'","fechaIncidente":"'+@FechaRegistro+'","nombreDocumento":"'+CAST(@incidente_id AS VARCHAR)+'","enlace":"'+@enlace+'"}'
+	EXEC ges.email_enviar
+			@plantilla_id = @PlantillaId,
+			@destinatario = @EmailSender,
+			@copia = NULL,
+			@copia_oculta = NULL,
+			@titulo = NULL,
+			@campos = @Email_campos,
+			@estado = 1,
+			@mensaje = 'correo enviado'
+		
+	SET @estado = 1
+	SET @mensaje = 'Se actualizó el incidente N° '+CAST(@incidente_id AS VARCHAR)
+END TRY
+BEGIN CATCH
+
+	SET @mensaje = ERROR_MESSAGE();
+	SET @estado = 0;
+		
+END CATCH

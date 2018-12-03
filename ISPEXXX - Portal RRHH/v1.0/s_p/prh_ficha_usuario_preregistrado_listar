@@ -1,0 +1,49 @@
+USE [Inland]
+GO
+/****** Object:  StoredProcedure [prh].[ficha_usuario_preregistrado_listar]    Script Date: 3/12/2018 10:02:23 ******/
+SET ANSI_NULLS ON
+GO
+SET QUOTED_IDENTIFIER ON
+GO
+
+ALTER proc [prh].[ficha_usuario_preregistrado_listar] (
+	@Ficha_laboral_id INT,
+	@FechaDesde date,
+	@FechaHasta date,
+	@Page INT,
+	@Size INT
+)
+AS
+--@jpoOutputs{result : 'users {id : number, colaborador : string, correo : string, fechaRegistro : Date, estado : number, estadoDescripcion : string, ficha_laboral_id : number}'}
+--@jpoOutput{result : 'response {total : number}'}
+SET NOCOUNT ON 
+
+	DECLARE @fechaInicio DATETIME
+	DECLARE @fechaFin DATETIME
+	SET @fechaInicio  = CONVERT(CHAR(8),@FechaDesde,112) + ' 00:00:00'
+	SET @fechaFin = CONVERT(CHAR(8),@FechaHasta,112) + ' 23:59:59'
+
+	SELECT
+		USUA.usuario_id,
+		CONCAT(USUA.nombres, ' ', USUA.apellido_paterno, ' ', USUA.apellido_materno) colaborador,
+		USUA.correo,
+		TAB1.fecha_registro,
+		TAB1.estado estado,
+		case TAB1.estado
+			when 0 then 'Pre-registrado'
+		end estadoDescripcion,
+		TAB1.ficha_laboral_id
+	FROM prh.ficha_laboral TAB1
+	INNER JOIN seg.usuario USUA ON USUA.usuario_id = TAB1.usuario_id
+	WHERE TAB1.estado IN (0) AND
+		(@Ficha_laboral_id IS NULL OR (TAB1.ficha_laboral_id = @Ficha_laboral_id)) AND
+		(@FechaDesde IS NULL OR (@FechaHasta IS NULL OR (TAB1.fecha_registro between @fechaInicio and @fechaFin)))
+	ORDER BY TAB1.ficha_laboral_id DESC
+	OFFSET ((@Page - 1)* @Size) ROWS
+	FETCH NEXT @Size ROWS ONLY;
+
+	SELECT COUNT(*)
+	FROM prh.ficha_laboral TAB1
+	WHERE TAB1.estado IN (0) AND
+		(@Ficha_laboral_id IS NULL OR (TAB1.ficha_laboral_id = @Ficha_laboral_id)) AND
+		(@FechaDesde IS NULL OR (@FechaHasta IS NULL OR (TAB1.fecha_registro between @fechaInicio and @fechaFin)))

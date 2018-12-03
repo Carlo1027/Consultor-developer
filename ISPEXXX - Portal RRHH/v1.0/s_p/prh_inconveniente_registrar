@@ -1,0 +1,69 @@
+USE [Inland]
+GO
+/****** Object:  StoredProcedure [prh].[inconveniente_registrar]    Script Date: 3/12/2018 10:04:44 ******/
+SET ANSI_NULLS ON
+GO
+SET QUOTED_IDENTIFIER ON
+GO
+
+ALTER proc [prh].[inconveniente_registrar] (
+	@usuario_registro_id INT,
+	@ficha_laboral_id INT,
+	@mensaje_inconveniente VARCHAR(MAX),
+	@enlace VARCHAR(MAX),
+	@estado INT OUT,
+	@mensaje varchar(max) OUT 
+)
+AS
+
+SET NOCOUNT ON 
+
+BEGIN TRY
+	DECLARE @inconveniente_id INT
+
+	DECLARE @Fullname VARCHAR(MAX)
+	DECLARE @EmailSender VARCHAR(MAX)
+	DECLARE @Email_campos NVARCHAR(MAX)
+	DECLARE @PlantillaId INT
+
+	SELECT @EmailSender = (SELECT USUA.correo + '; '
+							FROM seg.usuario USUA
+							INNER JOIN seg.usuario_rol ROL ON USUA.usuario_id = ROL.usuario_id
+							WHERE USUA.estado = '1' AND ROL.rol_id IN (8)
+							FOR XML PATH(''))
+
+	-- Datos del usuario que registró el inconveniente
+	SELECT @Fullname = CONCAT(USU.nombres, ' ', USU.apellido_paterno, ' ', USU.apellido_materno)
+	FROM seg.usuario USU
+	WHERE USU.usuario_id = @usuario_registro_id
+
+	-- Registro inconveniente
+	INSERT INTO 
+			prh.ficha_laboral_inconvenientes(ficha_laboral_id, mensaje_inconveniente, usuario_registro_id, estado)
+	VALUES
+			(@ficha_laboral_id, @mensaje_inconveniente, @usuario_registro_id, '1')
+	SET @inconveniente_id = @@IDENTITY
+
+	--Envío correo único
+	SET @PlantillaId = 21
+	SET @Email_campos = N'{"nombreCompleto":"'+@Fullname+'","fichaLaboralId":"'+CAST(@ficha_laboral_id AS VARCHAR)+'","mensaje":"'+@mensaje_inconveniente+'","enlace":"'+@enlace+'"}'
+
+	EXEC ges.email_enviar
+			@plantilla_id = @PlantillaId,
+			@destinatario = @EmailSender,
+			@copia = NULL,
+			@copia_oculta = NULL,
+			@titulo = NULL,
+			@campos = @Email_campos,
+			@estado = 1,
+			@mensaje = 'correo enviado'
+
+	SET @estado = 1
+	SET @mensaje = 'Se registró el inconveniente N° '+CAST(@inconveniente_id AS VARCHAR)
+END TRY
+BEGIN CATCH
+
+	SET @mensaje = ERROR_MESSAGE();
+	SET @estado = 0;
+		
+END CATCH

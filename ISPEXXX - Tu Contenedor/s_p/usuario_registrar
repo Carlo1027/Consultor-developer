@@ -1,0 +1,102 @@
+USE [Inland]
+GO
+/****** Object:  StoredProcedure [tco].[usuario_registrar]    Script Date: 3/12/2018 10:28:38 ******/
+SET ANSI_NULLS ON
+GO
+SET QUOTED_IDENTIFIER ON
+GO
+ALTER PROC [tco].[usuario_registrar] (
+	@Nombre VARCHAR(100),
+	@Apellido_paterno VARCHAR(100),
+	@Apellido_materno VARCHAR(100),
+	@Correo VARCHAR(100),
+	@Clave VARCHAR(100),
+	@Ruc VARCHAR(100),
+	@Empresa VARCHAR(100),
+	@Enlace VARCHAR(250),
+	@Unidad_negocio_id INT,
+	@Origen VARCHAR(3),
+	@estado INT OUT,
+	@mensaje varchar(max) OUT
+)
+AS
+
+SET NOCOUNT ON
+
+	BEGIN TRY
+
+		DECLARE @Usuario_id INT
+		DECLARE @PlantillaId INT
+
+		SET @PlantillaId = 23
+
+		SET @Correo = UPPER(@Correo)
+
+		-- 1. Obteniendo el id de usuario en base al correo
+		SELECT @Usuario_id = usuario_id
+		FROM
+			seg.usuario
+		WHERE
+			UPPER(id) = @Correo
+
+		-- 3. Validando si el usuario no existe
+		IF @Usuario_id IS NULL
+		BEGIN
+			
+			DECLARE @Empresa_id INT
+
+			-- 3.1. Valida el RUC ingresado
+			SELECT @Empresa_id = empresa_id
+			FROM
+				ges.empresa
+			WHERE
+				documento = @Ruc AND
+				unidad_negocio_id = @Unidad_negocio_id
+
+			-- 3.1. Registra al usuario nuevo
+			INSERT INTO 
+				seg.usuario (id, correo, clave, fecha_cambio_clave, nombres, apellido_paterno, apellido_materno, empresa_id, estado, usuario_registro_id)
+			VALUES
+				(@Correo, @Correo, @Clave, (Getdate()+60), @Nombre, @Apellido_paterno, @Apellido_materno, @Empresa_id, '2', 1)
+			SET @Usuario_id = @@IDENTITY
+
+			-- 3.2. Asocio correos al usuario
+			EXEC tco.usuario_rol_template_asociar
+					@Usuario_id = @Usuario_id,
+					@estado = @estado OUTPUT,
+					@mensaje = @mensaje OUTPUT
+
+			-- 3.3. Enviar el email
+			DECLARE @Email_campos NVARCHAR(MAX) = N'{"nombre":"'+@Nombre+' '+@Apellido_paterno+' '+@Apellido_materno+'","usuario":"'+@Correo+'","enlace":"'+@Enlace+'"}'
+			
+			EXEC ges.email_enviar
+					@plantilla_id = @PlantillaId,
+					@destinatario = @Correo,
+					@copia = NULL,
+					@copia_oculta = NULL,
+					@titulo = NULL,
+					@campos = @Email_campos,
+					@estado = @estado OUTPUT,
+					@mensaje = @mensaje OUTPUT
+			
+			IF @estado = 1
+			BEGIN
+				SET @mensaje = 'Usuario creado correctamente, recibirás un correo de confirmación para completar el registro.';
+			END
+
+		END
+		ELSE
+		BEGIN
+
+			SET @estado = 2;
+			SET @mensaje = 'Usuario ya registrado, si no recuerdas tu clave reestablécela.';
+
+		END
+			
+	END TRY
+	BEGIN CATCH
+
+		SET @estado = 0;
+		SET @mensaje = ERROR_MESSAGE();
+		
+	END CATCH

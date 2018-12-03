@@ -1,0 +1,33 @@
+USE [Inland]
+GO
+/****** Object:  StoredProcedure [seg].[notificacion_listar]    Script Date: 3/12/2018 10:58:01 ******/
+SET ANSI_NULLS ON
+GO
+SET QUOTED_IDENTIFIER ON
+GO
+ALTER PROC [seg].[notificacion_listar] (
+	@Page INT,
+	@Size INT
+)
+AS
+--@jpoOutput{result : 'response {total : number}'}
+--@jpoOutputs{result : 'adds {notificacion_id : number, titulo : string, subtitulo : string, icono : string, nivel : string, unica_vez : string, unica_alerta : string, fecha_caducidad : Date, estado : string}'}
+
+SET NOCOUNT ON 
+
+	SELECT COUNT(*)
+	FROM [Inland].[seg].[notificacion]
+
+	SELECT [notificacion_id]
+		  ,[titulo]
+		  ,[subtitulo]
+		  ,[icono]
+		  ,[nivel]
+		  ,[unica_vez]
+		  ,[unica_alerta]
+		  ,[fecha_caducidad]
+		  ,[estado]
+	FROM [Inland].[seg].[notificacion]
+	ORDER BY notificacion_id DESC
+	OFFSET ((@Page - 1) * @Size) ROWS
+	FETCH NEXT @Size ROWS ONLY

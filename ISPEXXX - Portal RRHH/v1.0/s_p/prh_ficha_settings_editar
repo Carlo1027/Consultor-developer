@@ -1,0 +1,38 @@
+USE [Inland]
+GO
+/****** Object:  StoredProcedure [prh].[ficha_settings_editar]    Script Date: 3/12/2018 10:00:06 ******/
+SET ANSI_NULLS ON
+GO
+SET QUOTED_IDENTIFIER ON
+GO
+ALTER PROC [prh].[ficha_settings_editar] (
+	@Admin_id INT,
+	@Setting_id INT,
+	@Value char(1),
+	@estado INT OUT,
+	@mensaje varchar(max) OUT 
+)
+AS
+
+SET NOCOUNT ON 
+
+	BEGIN TRY
+
+		UPDATE prh.ficha_settings
+		SET
+			estado = @Value,
+			usuario_modificacion_id = @Admin_id,
+    		fecha_modificacion = CURRENT_TIMESTAMP
+		WHERE
+			setting_id = @Setting_id
+		
+		SET @estado = 1
+		SET @mensaje = 'Ajuste actualizado correctamente'
+			
+	END TRY
+	BEGIN CATCH
+
+		SET @estado = 0;
+		SET @mensaje = ERROR_MESSAGE();
+		
+	END CATCH

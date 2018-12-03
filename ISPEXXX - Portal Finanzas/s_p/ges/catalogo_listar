@@ -1,0 +1,33 @@
+USE [Inland]
+GO
+/****** Object:  StoredProcedure [ges].[catalogo_listar]    Script Date: 3/12/2018 10:46:56 ******/
+SET ANSI_NULLS ON
+GO
+SET QUOTED_IDENTIFIER ON
+GO
+ALTER PROC [ges].[catalogo_listar]
+	@Unidad_negocio_id INT,
+	@padres_id VARCHAR(1000)  -- 1,2,3,4
+AS
+SET NOCOUNT ON
+
+BEGIN
+	DECLARE @SQL varchar(600)
+
+	IF LEN(@padres_id) IS NOT NULL AND LEN(@padres_id) > 0
+	BEGIN
+		SET @SQL = '
+		SELECT 
+			catalogo_id, descripcion, catalogo_padre_id 
+		FROM
+			ges.catalogo
+		WHERE
+			catalogo_padre_id IN ('+@padres_id+') AND estado = ''1'' AND unidad_negocio_id = '+CAST(@Unidad_negocio_id AS VARCHAR(3))
+		EXEC(@SQL)
+	END
+	ELSE
+	BEGIN
+		SELECT 0, '', 0
+	END
+
+END

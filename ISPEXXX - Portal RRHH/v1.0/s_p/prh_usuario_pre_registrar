@@ -1,0 +1,170 @@
+USE [Inland]
+GO
+/****** Object:  StoredProcedure [prh].[usuario_pre_registrar]    Script Date: 3/12/2018 10:05:05 ******/
+SET ANSI_NULLS ON
+GO
+SET QUOTED_IDENTIFIER ON
+GO
+ALTER PROC [prh].[usuario_pre_registrar] (
+	@Admin_id INT,
+	@Nombre VARCHAR(100),
+	@Apellido_paterno VARCHAR(100),
+	@Apellido_materno VARCHAR(100),
+	@Correo VARCHAR(100),
+	@Documento_identidad INT,
+	@Numero_documento_identidad VARCHAR(30),
+	@Clave VARCHAR(100),
+	@ClaveMD5 VARCHAR(100),
+	@Ruc VARCHAR(100),
+	@Enlace VARCHAR(250),
+	@Pais_id INT,
+	@estado INT OUT,
+	@mensaje varchar(max) OUT 
+)
+AS
+
+SET NOCOUNT ON 
+
+	BEGIN TRY
+
+		DECLARE @Usuario_id INT
+		DECLARE @PlantillaId INT
+		DECLARE @Ficha_laboral_id INT
+		DECLARE @Empresa_id INT
+
+		SET @Correo = UPPER(@Correo)
+
+		-- 1. Obteniendo el id de usuario en base al correo
+		SELECT @Usuario_id = usuario_id
+		FROM
+			seg.usuario
+		WHERE
+			UPPER(id) = @Correo
+
+		-- 3. Validando si el usuario no existe
+		IF @Usuario_id IS NULL
+		BEGIN
+
+			-- 3.1. Selecciona el id de APM Terminals Inland Services
+			SELECT @Empresa_id = empresa_id
+			FROM
+				ges.empresa
+			WHERE
+				documento = @Ruc AND
+				unidad_negocio_id = @Pais_id
+
+			-- 3.1. Registra al usuario nuevo
+			INSERT INTO
+				seg.usuario (id, correo, clave, fecha_cambio_clave, nombres, apellido_paterno, apellido_materno, empresa_id, estado, usuario_registro_id)
+			VALUES
+				(@Correo, @Correo, @ClaveMD5, (Getdate()+60), @Nombre, @Apellido_paterno, @Apellido_materno, @Empresa_id, '1', @Admin_id)
+			SET @Usuario_id = @@IDENTITY
+
+			-- 3.2. Registra al usuario nuevo en ficha_laboral
+			INSERT INTO 
+				prh.ficha_laboral (usuario_id, documento_identidad, numero_documento_identidad, estado, usuario_registro_id)
+			VALUES
+				(@Usuario_id, @Documento_identidad, @Numero_documento_identidad, '0', @Admin_id)
+			SET @Ficha_laboral_id = @@IDENTITY
+
+			-- 3.3. Registra al usuario nuevo en ficha_laboral_organizacional
+			INSERT INTO 
+				prh.ficha_laboral_organizacional(ficha_laboral_id, usuario_registro_id)
+			VALUES
+				(@Ficha_laboral_id, @Usuario_id)
+
+			-- 3.4. Registra al usuario nuevo en ficha_laboral_adicional
+			INSERT INTO
+				prh.ficha_laboral_adicional(ficha_laboral_id, usuario_registro_id)
+			VALUES
+				(@Ficha_laboral_id, @Usuario_id)
+
+			-- 3.4. Registra rol al usuario nuevo
+			EXEC [seg].[usuario_registrar_recursos_humanos]
+					@Usuario_id = @Usuario_id,
+					@estado = @estado OUTPUT,
+					@mensaje = @mensaje OUTPUT
+
+			IF @estado = 0
+			BEGIN
+				RETURN
+			END
+
+			-- 3.5. Enviar el email
+			DECLARE @Email_campos NVARCHAR(MAX) = N'{"nombreCompleto":"'+@Nombre+' '+@Apellido_paterno+' '+@Apellido_materno+'","correo":"'+@Correo+'","clave":"'+@Clave+'","enlace":"'+@Enlace+'"}'
+			
+			EXEC ges.email_enviar
+					@plantilla_id = 20,
+					@destinatario = @Correo,
+					@copia = NULL,
+					@copia_oculta = NULL,
+					@titulo = NULL,
+					@campos = @Email_campos,
+					@estado = @estado OUTPUT,
+					@mensaje = @mensaje OUTPUT
+			
+			IF @estado = 1
+			BEGIN
+				SET @mensaje = 'Usuario creado correctamente, recibirá un correo con las credenciales de acceso al portal';
+			END
+
+		END
+		ELSE
+		BEGIN
+
+			SELECT @Ficha_laboral_id = ficha_laboral_id
+			FROM prh.ficha_laboral FIC
+			WHERE FIC.usuario_id = @Usuario_id
+
+			IF @Ficha_laboral_id IS NULL
+			BEGIN
+				
+				-- 3.2. Registra al usuario nuevo en ficha_laboral
+				INSERT INTO 
+					prh.ficha_laboral (usuario_id, documento_identidad, numero_documento_identidad, estado, usuario_registro_id)
+				VALUES
+					(@Usuario_id, @Documento_identidad, @Numero_documento_identidad, '0', @Admin_id)
+				SET @Ficha_laboral_id = @@IDENTITY
+
+				-- 3.3. Registra al usuario nuevo en ficha_laboral_organizacional
+				INSERT INTO 
+					prh.ficha_laboral_organizacional(ficha_laboral_id, usuario_registro_id)
+				VALUES
+					(@Ficha_laboral_id, @Usuario_id)
+
+				-- 3.4. Registra al usuario nuevo en ficha_laboral_adicional
+				INSERT INTO
+					prh.ficha_laboral_adicional(ficha_laboral_id, usuario_registro_id)
+				VALUES
+					(@Ficha_laboral_id, @Usuario_id)
+
+				-- 3.4. Registra rol al usuario nuevo
+				EXEC [seg].[usuario_registrar_recursos_humanos]
+						@Usuario_id = @Usuario_id,
+						@estado = @estado OUTPUT,
+						@mensaje = @mensaje OUTPUT
+
+				IF @estado = 0
+				BEGIN
+					RETURN
+				END
+
+				SET @estado = 1;
+				SET @mensaje = 'Usuario registrado correctamente';
+
+			END
+			ELSE 
+			BEGIN
+				SET @estado = 2;
+				SET @mensaje = 'Usuario ya registrado, si no recuerda su clave, debe reestablecerla';
+			END
+
+		END
+			
+	END TRY
+	BEGIN CATCH
+
+		SET @estado = 0;
+		SET @mensaje = ERROR_MESSAGE();
+		
+	END CATCH

@@ -1,0 +1,76 @@
+USE [Inland]
+GO
+/****** Object:  StoredProcedure [prh].[ficha_laboral_adicional_II_editar]    Script Date: 3/12/2018 09:52:14 ******/
+SET ANSI_NULLS ON
+GO
+SET QUOTED_IDENTIFIER ON
+GO
+ALTER PROC [prh].[ficha_laboral_adicional_II_editar] (
+	@Usuario_id INT,
+	@Ficha_laboral_id INT,
+    @Ficha_laboral_adicional_id INT,
+
+    @correoAsignado INT,
+	@celularAsignado INT,
+	@rutaIda INT,
+	@rutaVuelta INT,
+	@tallaPolo INT,
+	@tallaZapato VARCHAR(MAX),
+	@tallaPantalon VARCHAR(MAX),
+	@tallaCasaca INT,
+	@carnetConapdis INT,
+	@casilleroAsignado VARCHAR(MAX),
+	@correoRecibeBoletas VARCHAR(MAX),
+	@telefInfoSunat VARCHAR(MAX),
+	@estado INT OUT,
+	@mensaje varchar(max) OUT 
+)
+AS
+
+SET NOCOUNT ON 
+
+BEGIN TRY
+	
+	DECLARE @SettingStatus INT
+	SELECT @SettingStatus=estado
+	FROM prh.ficha_settings
+	WHERE setting_id = 6
+
+	IF (@SettingStatus=1)
+	BEGIN
+
+		UPDATE prh.ficha_laboral_adicional
+		SET
+			correo_asignado=@correoAsignado,
+			celular_asignado=@celularAsignado,
+			ruta_ida=@rutaIda,
+			ruta_vuelta=@rutaVuelta,
+			talla_polo=@tallaPolo,
+			talla_zapato=@tallaZapato,
+			talla_pantalon=@tallaPantalon,
+			talla_casaca=@tallaCasaca,
+			carnet_conapdis=@carnetConapdis,
+			casillero_asignado=@casilleroAsignado,
+			correo_recibe_boletas=@correoRecibeBoletas,
+			telef_info_sunat=@telefInfoSunat,
+    		fecha_modificacion = CURRENT_TIMESTAMP,
+    		usuario_modificacion_id = @Usuario_id
+		WHERE
+			ficha_laboral_adicional_id = @Ficha_laboral_adicional_id AND
+			ficha_laboral_id = @Ficha_laboral_id
+		SET @estado = 1
+		SET @mensaje = 'Información adicional (II) actualizada correctamente'
+	END
+	ELSE
+	BEGIN
+		SET @estado = 0
+		SET @mensaje = 'No está permitido editar la información adicional(II)'
+	END
+			
+END TRY
+BEGIN CATCH
+
+	SET @estado = 0;
+	SET @mensaje = ERROR_MESSAGE();
+		
+END CATCH

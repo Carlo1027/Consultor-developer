@@ -1,0 +1,30 @@
+USE [Inland]
+GO
+/****** Object:  StoredProcedure [seg].[notificacion_obtener]    Script Date: 3/12/2018 10:58:13 ******/
+SET ANSI_NULLS ON
+GO
+SET QUOTED_IDENTIFIER ON
+GO
+ALTER PROC [seg].[notificacion_obtener] (
+	@Notificacion_id INT
+)
+AS
+--@jpoOutput{result : 'add {notificacion_id : number, titulo : string, subtitulo : string, descripcion : string, icono : string, nivel : string, unica_vez : string, unica_alerta : string, fecha_caducidad : Date, estado : string}'}
+--@jpoOutputs{result : 'roles {rol_id : number}'}
+
+SET NOCOUNT ON 
+
+	SELECT [notificacion_id]
+		  ,[titulo]
+		  ,[subtitulo]
+		  ,[descripcion]
+		  ,[icono]
+		  ,[nivel]
+		  ,[unica_vez]
+		  ,[unica_alerta]
+		  ,[fecha_caducidad]
+		  ,[estado]
+	FROM [Inland].[seg].[notificacion]
+	WHERE notificacion_id = @Notificacion_id
+
+	SELECT rol_id FROM [Inland].[seg].[notificacion_rol] WHERE notificacion_id = @Notificacion_id

@@ -1,0 +1,51 @@
+Gates:
+agregar una opción para cargar en el GR un excel con el detalle de los Bookins
+revisar que al descargar el buzon electronico tomar la fecha de llego el correo
+controlar las fechas de feriado, fin de semana y horarios de trabajo
+debe poder ver todas las oc tengo o no gr
+
+Puerto:
+Lo siguen haciendo igual, pero se va agregar la funcionalidad de cargar los sustentos
+
+OC:
+la validación que hace AP recepción:
+- aprobado: genera pre-registro y se envia correo al proveedor
+- rechazado: se envia correo al proveedor indicando motivo
+- aprobado con observaciones: genera pre-registro y se envia correo al proveedor
+- basta que la oc tenga una gr pendiente puede proceder a dejar la factura
+
+
+mensaje de advertencia: si la oc no tiene ningun GR --> la OC no tiene la aprobación final 
+en el sistema.
+representación impresa: colocar (PDF de comprobante de venta)
+
+
+Modificación posterior Pre-Registro:
+- Se anula la factura por un error interno y se va a crear con otro IRW
+- Se anula la factura porque se dara reversa al GR.
+- Se elimina el pre-registro porque se dara reversa al GR.
+
+***************************
+RUC EMPRESA
+DNI para usuario
+contraseña
+correo
+
+reporte para obtener los contactos 
+
+opción en el menu del proveedor: Mis datos --> en la pagina se mostraran los datos del proveedor (coordinar con compras que se mostrara)
+
+al momento de la asignación ap agregar la validación de CPE y validación de que debe ingresar un documento electronico y no fisico
+
+agregar en la ventana de datos tributarios del proveedor un campo fecha de inicio de emisión electrónica.
+
+al modificar el documento la fecha de recepción no varía
+
+
+Caso 1 - Devolución de factura: para el portal quedara como registrada ya que la devolución se realiza en el Dynamics. 
+En caso se requiera mantener el mismo estado se puede agregar una opción para cambiar el comprobante en estado Devuelto.
+Caso 2 – Corrección: esta opción si esta descrito en la pagina 14 donde se podrá modificar el comprobante, 
+lo que falta detallar son los 2 escenarios de corrección: cuando quieren hacer la corrección cuando el comprobante ya fue contabilizado y 
+cuando aún no ha sido contabilizado. Para el caso de un comprobante contabilizado se tendrá que hacer un artificio para que el sistema 
+pueda registrarse el mismo numero de documento. 
+

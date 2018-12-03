@@ -1,0 +1,57 @@
+USE [Inland]
+GO
+/****** Object:  StoredProcedure [tco].[carga_detalle_listar]    Script Date: 3/12/2018 10:20:41 ******/
+SET ANSI_NULLS ON
+GO
+SET QUOTED_IDENTIFIER ON
+GO
+
+ALTER PROC [tco].[carga_detalle_listar](
+	@ImpoBaseId INT,
+	@NumeroContenedor VARCHAR(MAX),
+	@FechaDesde DATE,
+	@FechaHasta DATE,
+	@Page INT,
+	@Size INT,
+	@DocumentoIdentidad VARCHAR(MAX),
+	@CodigoM VARCHAR(MAX)
+)
+AS
+
+SET NOCOUNT ON
+
+	DECLARE @fechaInicio DATETIME
+	DECLARE @fechaFin DATETIME
+	SET @fechaInicio  = CONVERT(CHAR(8),@FechaDesde,112) + ' 00:00:00'
+	SET @fechaFin = CONVERT(CHAR(8),@FechaHasta,112) + ' 23:59:59'
+
+	SELECT C.doc_transporte_detalle_id, B.doc_transporte_id, B.numero_documento, B.empresa_id, F.documento, F.razon_social, C.contenedor, C.contenedor_tipo, D.descripcion, C.contenedor_tamano, E.descripcion, N.alias
+	FROM tco.impo_base A
+	INNER JOIN tco.doc_transporte B ON B.impo_base_id = A.impo_base_id
+	INNER JOIN tco.doc_transporte_detalle C ON C.doc_transporte_id = B.doc_transporte_id
+	INNER JOIN ges.catalogo D ON D.catalogo_id = C.contenedor_tipo
+	INNER JOIN ges.catalogo E ON E.catalogo_id = C.contenedor_tamano
+	INNER JOIN ges.empresa F ON F.empresa_id = B.empresa_id
+	LEFT JOIN tco.empresa_alias N ON N.empresa_id = B.empresa_id
+	WHERE A.impo_base_id = @ImpoBaseId AND
+		(@NumeroContenedor IS NULL OR (C.contenedor = @NumeroContenedor)) AND
+		(@FechaDesde IS NULL OR (@FechaHasta IS NULL OR (C.fecha_registro between @fechaInicio and @fechaFin))) AND
+		(@CodigoM IS NULL OR (N.alias = @CodigoM)) AND
+		(@DocumentoIdentidad IS NULL OR (F.documento = @DocumentoIdentidad))
+	ORDER BY 1 DESC
+	OFFSET ((@Page - 1)* @Size) ROWS
+	FETCH NEXT @Size ROWS ONLY;
+
+	SELECT COUNT(*)
+	FROM tco.impo_base A
+	INNER JOIN tco.doc_transporte B ON B.impo_base_id = A.impo_base_id
+	INNER JOIN tco.doc_transporte_detalle C ON C.doc_transporte_id = B.doc_transporte_id
+	INNER JOIN ges.catalogo D ON D.catalogo_id = C.contenedor_tipo
+	INNER JOIN ges.catalogo E ON E.catalogo_id = C.contenedor_tamano
+	INNER JOIN ges.empresa F ON F.empresa_id = B.empresa_id
+	LEFT JOIN tco.empresa_alias N ON N.empresa_id = B.empresa_id
+	WHERE A.impo_base_id = @ImpoBaseId AND
+		(@NumeroContenedor IS NULL OR (C.contenedor = @NumeroContenedor)) AND
+		(@FechaDesde IS NULL OR (@FechaHasta IS NULL OR (C.fecha_registro between @fechaInicio and @fechaFin))) AND
+		(@CodigoM IS NULL OR (N.alias = @CodigoM)) AND
+		(@DocumentoIdentidad IS NULL OR (F.documento = @DocumentoIdentidad))

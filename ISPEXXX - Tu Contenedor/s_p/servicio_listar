@@ -1,0 +1,23 @@
+USE [Inland]
+GO
+/****** Object:  StoredProcedure [tco].[servicio_listar]    Script Date: 3/12/2018 10:27:05 ******/
+SET ANSI_NULLS ON
+GO
+SET QUOTED_IDENTIFIER ON
+GO
+
+ALTER PROC [tco].[servicio_listar] (
+	@Unidad_negocio_id INT
+)
+AS
+
+SET NOCOUNT ON
+
+	SELECT 
+		servicio_id, nombre, indicador_especial, estado, fecha_registro
+	FROM 
+		tco.servicio
+	WHERE
+		unidad_negocio_id = @Unidad_negocio_id
+	ORDER BY
+		servicio_id DESC 

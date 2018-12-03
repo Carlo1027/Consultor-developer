@@ -1,0 +1,102 @@
+USE [Inland]
+GO
+/****** Object:  StoredProcedure [tco].[bls_listar]    Script Date: 3/12/2018 10:20:09 ******/
+SET ANSI_NULLS ON
+GO
+SET QUOTED_IDENTIFIER ON
+GO
+
+ALTER PROC [tco].[bls_listar] (
+	@Cliente_id VARCHAR(MAX),
+	@Numero_bl VARCHAR(MAX),
+	@FechaDesde DATE,
+	@FechaHasta DATE,
+	@Page INT,
+	@Size INT,
+	@Estado CHAR(1),
+	@Tipo_operacion INT
+)
+AS
+
+SET NOCOUNT ON
+
+	DECLARE @fechaInicio DATETIME
+	DECLARE @fechaFin DATETIME
+	SET @fechaInicio  = CONVERT(CHAR(8),@FechaDesde,112) + ' 00:00:00'
+	SET @fechaFin = CONVERT(CHAR(8),@FechaHasta,112) + ' 23:59:59'
+
+	DECLARE @EstadoPendiente INT
+	SET @EstadoPendiente = 0
+
+	IF @Numero_bl IS NULL OR @Numero_bl=''
+	BEGIN
+		SET @Numero_bl = '%'
+	END
+
+	DECLARE @T_impo TABLE(
+			BL_id INT,
+			NumeroBL VARCHAR(MAX),
+			NaveViajeRumbo VARCHAR(MAX),
+			Consignatario VARCHAR(MAX),
+			Linea VARCHAR(MAX),
+			Estado char(1),
+			Fecha_liquidacion Datetime,
+			Liquidacion_id INT,
+			Codigo_pago VARCHAR(MAX),
+			CantidadContenedores INT
+		)
+
+	--Liquidaciones Pendientes
+	INSERT INTO @T_impo
+	SELECT B.doc_transporte_id, B.numero_documento as NumeroBL, B.nave+'/'+B.viaje+'/'+B.rumbo as NaveViajeRumbo, E.razon_social as Consignatario, F.nombre as Linea, @EstadoPendiente, null, null, null, COUNT(*) as CantidadContenedores
+	FROM tco.doc_transporte B
+	INNER JOIN tco.doc_transporte_detalle C ON C.doc_transporte_id = B.doc_transporte_id
+	INNER JOIN ges.empresa E ON E.empresa_id = B.empresa_id
+	INNER JOIN tco.linea F ON F.linea_id = B.linea_id
+
+	WHERE not exists (SELECT 1 FROM tco.liquidacion_detalle G  
+	LEFT JOIN tco.liquidacion H ON H.liquidacion_id = G.liquidacion_id
+	WHERE C.doc_transporte_detalle_id = G.doc_transporte_detalle_id AND H.estado != 3)
+	AND @Cliente_id = E.documento AND B.tipo_operacion=@Tipo_operacion
+	GROUP BY B.doc_transporte_id, B.numero_documento, B.nave+'/'+B.viaje+'/'+B.rumbo, E.razon_social, F.nombre
+
+	--Liquidaciones Realizadas
+	INSERT INTO @T_impo
+	SELECT B.doc_transporte_id, B.numero_documento as NumeroBL, B.nave+'/'+B.viaje+'/'+B.rumbo as NaveViajeRumbo, E.razon_social as Consignatario, F.nombre as Linea, H.estado, H.fecha_registro, H.liquidacion_id, null, COUNT(*) as CantidadContenedores
+	FROM tco.doc_transporte B
+	INNER JOIN tco.doc_transporte_detalle C ON C.doc_transporte_id = B.doc_transporte_id
+	INNER JOIN ges.empresa E ON E.empresa_id = B.empresa_id
+	INNER JOIN tco.linea F ON F.linea_id = B.linea_id
+
+	INNER JOIN tco.liquidacion_detalle G ON C.doc_transporte_detalle_id = G.doc_transporte_detalle_id
+	INNER JOIN tco.liquidacion H ON H.liquidacion_id = G.liquidacion_id
+	WHERE H.estado = 1 AND @Cliente_id = E.documento AND B.tipo_operacion=@Tipo_operacion
+	GROUP BY B.doc_transporte_id, B.numero_documento, B.nave+'/'+B.viaje+'/'+B.rumbo, E.razon_social, F.nombre, H.estado, H.fecha_registro, H.liquidacion_id
+
+	--Liquidaciones Facturadas
+	INSERT INTO @T_impo
+	SELECT B.doc_transporte_id, B.numero_documento as NumeroBL, B.nave+'/'+B.viaje+'/'+B.rumbo as NaveViajeRumbo, E.razon_social as Consignatario, F.nombre as Linea, H.estado, H.fecha_registro, H.liquidacion_id, null, COUNT(*) as CantidadContenedores
+	FROM tco.doc_transporte B
+	INNER JOIN tco.doc_transporte_detalle C ON C.doc_transporte_id = B.doc_transporte_id
+	INNER JOIN ges.empresa E ON E.empresa_id = B.empresa_id
+	INNER JOIN tco.linea F ON F.linea_id = B.linea_id
+
+	INNER JOIN tco.liquidacion_detalle G ON C.doc_transporte_detalle_id = G.doc_transporte_detalle_id
+	INNER JOIN tco.liquidacion H ON H.liquidacion_id = G.liquidacion_id
+	WHERE H.estado = 2 AND @Cliente_id = E.documento AND B.tipo_operacion=@Tipo_operacion
+	GROUP BY B.doc_transporte_id, B.numero_documento, B.nave+'/'+B.viaje+'/'+B.rumbo, E.razon_social, F.nombre, H.estado, H.fecha_registro, H.liquidacion_id
+
+	SELECT * 
+	FROM @T_impo
+	WHERE (@FechaDesde IS NULL OR (@FechaHasta IS NULL OR (Fecha_liquidacion between @fechaInicio and @fechaFin))) AND
+		(@Numero_bl IS NULL OR (NumeroBL LIKE @Numero_bl)) AND
+		(@Estado IS NULL OR (Estado = @Estado))
+	ORDER BY 1 DESC
+	OFFSET ((@Page - 1)* @Size) ROWS
+	FETCH NEXT @Size ROWS ONLY;
+
+	SELECT COUNT(*)
+	FROM @T_impo
+	WHERE (@FechaDesde IS NULL OR (@FechaHasta IS NULL OR (Fecha_liquidacion between @fechaInicio and @fechaFin))) AND
+		(@Numero_bl IS NULL OR (NumeroBL LIKE @Numero_bl)) AND
+		(@Estado IS NULL OR (Estado = @Estado))

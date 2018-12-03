@@ -1,0 +1,47 @@
+USE [Inland]
+GO
+/****** Object:  StoredProcedure [prh].[ficha_laboral_id]    Script Date: 3/12/2018 09:58:02 ******/
+SET ANSI_NULLS ON
+GO
+SET QUOTED_IDENTIFIER ON
+GO
+ALTER PROC [prh].[ficha_laboral_id]
+	@colaborador_id bigint
+AS
+ 
+SET NOCOUNT ON
+
+BEGIN
+	SELECT 
+	  ficha_laboral_id
+	  ,FLAB.usuario_id
+	  ,USU.adjunto_foto_id
+      ,USU.nombres
+      ,USU.apellido_paterno
+      ,USU.apellido_materno
+      ,genero
+      ,fecha_nacimiento
+      ,documento_identidad
+      ,numero_documento_identidad
+      ,estado_civil
+      ,telefono_domicilio
+      ,telefono_celular
+      ,nacimiento_distrito
+      ,nacimiento_provincia
+      ,nacimiento_departamento
+      ,nacimiento_pais
+      ,brevete_categoria
+      ,brevete_fecha_expiracion
+      ,brevete_numero
+      ,USU.correo
+      ,domicilio_direccion
+      ,domicilio_distrito
+      ,domicilio_provincia
+      ,domicilio_departamento
+      ,domicilio_pais
+      ,domicilio_referencia
+	FROM prh.ficha_laboral FLAB
+	INNER JOIN seg.usuario USU ON USU.usuario_id = FLAB.usuario_id
+	WHERE FLAB.usuario_id = @colaborador_id
+
+END

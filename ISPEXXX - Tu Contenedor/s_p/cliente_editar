@@ -1,0 +1,54 @@
+USE [Inland]
+GO
+/****** Object:  StoredProcedure [tco].[cliente_editar]    Script Date: 3/12/2018 10:21:27 ******/
+SET ANSI_NULLS ON
+GO
+SET QUOTED_IDENTIFIER ON
+GO
+ALTER PROC [tco].[cliente_editar]
+	@Empresa_id INT,
+	@Usuario_modificacion_id INT,
+	@Unidad_negocio_id INT,
+	@Documento_identidad VARCHAR(MAX),
+	@Tipo_documento INT,
+	@Razon_social VARCHAR(MAX),
+	@Activo CHAR(1),
+	@estado INT OUT,
+	@mensaje varchar(max) OUT 
+AS
+
+SET NOCOUNT ON
+
+BEGIN TRY
+	IF(SELECT COUNT(*) FROM ges.empresa CLI WHERE CLI.documento=@Documento_identidad AND CLI.tipo_documento=@Tipo_documento AND CLI.unidad_negocio_id=@Unidad_negocio_id AND CLI.empresa_id!=@Empresa_id) = 0 
+	BEGIN
+		-- Actualiza cliente
+		UPDATE ges.empresa
+		SET
+			documento = @Documento_identidad,
+			tipo_documento = @Tipo_documento,
+			razon_social = @Razon_social,
+			estado = @Activo,
+			unidad_negocio_id = @Unidad_negocio_id,
+			usuario_modificacion_id = @Usuario_modificacion_id,
+    		fecha_modificacion = CURRENT_TIMESTAMP
+		WHERE
+			empresa_id = @Empresa_id
+	
+		SET @estado = 1;
+		SET @mensaje = 'Se actualizó la empresa correctamente';
+	END
+	ELSE
+	BEGIN
+		SET @estado = 0;
+		SET @mensaje = 'Estos datos ya se encuentran registrados en otra empresa';
+	END
+END TRY
+BEGIN CATCH
+       
+    DECLARE @log_id INT, @el INT = ERROR_LINE(), @en INT = ERROR_NUMBER(), @em NVARCHAR(4000) = ERROR_MESSAGE()
+    EXEC seg.log_registrar @Usuario_modificacion_id, 'tco.cliente_editar', @el, @en, @em, @log_id OUTPUT
+    SET @mensaje = CAST(@log_id AS VARCHAR)+' | '+ERROR_MESSAGE();
+    SET @estado = 0;
+
+END CATCH

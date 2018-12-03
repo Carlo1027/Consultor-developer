@@ -1,0 +1,29 @@
+USE [Inland]
+GO
+/****** Object:  StoredProcedure [prh].[ficha_laboral_emergencia_id]    Script Date: 3/12/2018 09:55:38 ******/
+SET ANSI_NULLS ON
+GO
+SET QUOTED_IDENTIFIER ON
+GO
+ALTER PROC [prh].[ficha_laboral_emergencia_id]
+	@colaborador_id bigint
+AS
+ 
+SET NOCOUNT ON
+
+BEGIN
+	SELECT 
+	  ficha_laboral_emergencia_id
+      ,TB1.ficha_laboral_id
+      ,TB1.nombre_completo
+      ,TB1.parentesco
+	  ,TB3.descripcion descripcionParentesco
+	  ,TB1.telefono
+	  ,TB1.correo
+	  ,TB1.direccion
+	FROM prh.ficha_laboral_emergencia TB1
+	INNER JOIN prh.ficha_laboral TB2 ON TB2.ficha_laboral_id = TB1.ficha_laboral_id
+	INNER JOIN ges.catalogo TB3 ON TB1.parentesco = TB3.catalogo_id
+	WHERE TB2.usuario_id = @colaborador_id
+
+END

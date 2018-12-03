@@ -1,0 +1,35 @@
+USE [Inland]
+GO
+/****** Object:  StoredProcedure [seg].[usuario_registrar_validar_finanzas]    Script Date: 3/12/2018 11:02:19 ******/
+SET ANSI_NULLS ON
+GO
+SET QUOTED_IDENTIFIER ON
+GO
+ALTER PROC [seg].[usuario_registrar_validar_finanzas] (
+	@Ruc varchar(100),
+	@estado INT OUT,
+	@mensaje varchar(max) OUT 
+)
+AS
+
+SET NOCOUNT ON 
+
+	BEGIN TRY
+
+		if(SELECT COUNT(*) FROM seg.usuario USU INNER JOIN ges.empresa EMP ON USU.empresa_id = EMP.empresa_id WHERE EMP.documento=@Ruc AND USU.estado=1) >= 5 AND @Ruc != '20107012011'
+		BEGIN
+			SET @estado = 2;
+			SET @mensaje = 'El proveedor ya cuenta con la cantidad máxima de usuarios activos (5)';
+		END
+		ELSE
+		BEGIN
+			SET @estado = 1;
+			SET @mensaje = 'Puede continuar con el registro';
+		END
+	END TRY
+	BEGIN CATCH
+
+		SET @estado = 0;
+		SET @mensaje = ERROR_MESSAGE();
+		
+	END CATCH

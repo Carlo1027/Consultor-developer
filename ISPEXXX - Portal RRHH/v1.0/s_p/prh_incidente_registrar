@@ -1,0 +1,66 @@
+USE [Inland]
+GO
+/****** Object:  StoredProcedure [prh].[incidente_registrar]    Script Date: 3/12/2018 10:04:19 ******/
+SET ANSI_NULLS ON
+GO
+SET QUOTED_IDENTIFIER ON
+GO
+
+ALTER proc [prh].[incidente_registrar] (
+	@usuario_registro_id bigint,
+	@respuesta1 VARCHAR(MAX),
+	@respuesta2 VARCHAR(MAX),
+	@respuesta3 VARCHAR(MAX),
+	@respuesta4 VARCHAR(MAX),
+	@respuesta5 VARCHAR(MAX),
+	@respuesta6 VARCHAR(MAX),
+	@enlace VARCHAR(MAX),
+	@estado INT OUT,
+	@mensaje varchar(max) OUT 
+)
+AS
+
+SET NOCOUNT ON 
+
+BEGIN TRY
+	DECLARE @incidente_id INT
+
+	DECLARE @EmailSender VARCHAR(MAX)
+	DECLARE @Email_campos NVARCHAR(MAX)
+	DECLARE @PlantillaId INT
+
+	SELECT @EmailSender = (SELECT INV.correo + '; '
+							FROM prh.incidente_involucrados INV
+							WHERE INV.estado = '1'
+							FOR XML PATH(''))
+
+	-- Registro incidente
+	INSERT INTO 
+			prh.incidente(respuesta1, respuesta2, respuesta3, respuesta4, respuesta5, respuesta6, usuario_registro_id)
+	VALUES
+			(@respuesta1, @respuesta2, @respuesta3, @respuesta4, @respuesta5, @respuesta6, @usuario_registro_id)
+	SET @incidente_id = @@IDENTITY
+
+	--Envío correo único
+	SET @PlantillaId = 15
+	SET @Email_campos = N'{"nombreDocumento":"'+CAST(@incidente_id AS VARCHAR)+'","enlace":"'+@enlace+'"}'
+
+	EXEC ges.email_enviar
+			@plantilla_id = @PlantillaId,
+			@destinatario = @EmailSender,
+			@copia = NULL,
+			@copia_oculta = NULL,
+			@titulo = NULL,
+			@campos = @Email_campos,
+			@estado = 1,
+			@mensaje = 'correo enviado'
+		
+	SET @estado = 1
+	SET @mensaje = 'Se registró el incidente N° '+CAST(@incidente_id AS VARCHAR)
+END TRY
+BEGIN CATCH
+
+	SET @mensaje = ERROR_MESSAGE();
+	SET @estado = 0;
+		
+END CATCH

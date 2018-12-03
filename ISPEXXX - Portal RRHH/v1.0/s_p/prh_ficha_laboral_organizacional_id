@@ -1,0 +1,51 @@
+USE [Inland]
+GO
+/****** Object:  StoredProcedure [prh].[ficha_laboral_organizacional_id]    Script Date: 3/12/2018 09:59:15 ******/
+SET ANSI_NULLS ON
+GO
+SET QUOTED_IDENTIFIER ON
+GO
+ALTER PROC [prh].[ficha_laboral_organizacional_id]
+	@colaborador_id bigint
+AS
+ 
+SET NOCOUNT ON
+
+BEGIN
+	SELECT 
+	  ficha_laboral_organizacional_id
+      ,TB1.ficha_laboral_id
+      ,unique_id
+      ,fecha_ingreso
+      ,condicion
+      ,posicion
+      ,job_level
+      ,business_unit
+      ,sede
+      ,jefe
+      ,coordinador
+      ,supervisor
+      ,gerente
+	  ,correo_corporativo
+      ,area
+      ,sub_area
+      ,leadership_role
+      ,calificacion
+      ,tipo_fiscalizacion
+      ,li_score
+      ,pi_score
+      ,modalidad_contrato
+      ,fecha_termino
+      ,motivo
+      ,reingreso
+      ,horario
+      ,numero_salarios
+      ,eps
+	  ,tipo_planilla
+      ,moneda
+      ,salario_mensual
+	FROM prh.ficha_laboral_organizacional TB1
+	INNER JOIN prh.ficha_laboral TB2 ON TB2.ficha_laboral_id = TB1.ficha_laboral_id
+	WHERE TB2.usuario_id = @colaborador_id
+
+END

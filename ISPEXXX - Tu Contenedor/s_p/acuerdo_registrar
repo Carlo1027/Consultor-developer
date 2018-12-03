@@ -1,0 +1,41 @@
+USE [Inland]
+GO
+/****** Object:  StoredProcedure [tco].[acuerdo_registrar]    Script Date: 3/12/2018 10:17:21 ******/
+SET ANSI_NULLS ON
+GO
+SET QUOTED_IDENTIFIER ON
+GO
+
+ALTER PROC [tco].[acuerdo_registrar] (
+	@Cliente_id INT,
+	@Servicio_id INT,
+	@Linea_id INT,
+	@Fecha_inicio DATE,
+	@Fecha_fin DATE,
+	@Activo CHAR(1),
+	@Usuario_id INT,
+	@estado INT OUT,
+	@mensaje varchar(max) OUT
+)
+AS
+SET NOCOUNT ON
+BEGIN TRY
+
+	-- 1. Registrando el acuerdo
+	INSERT INTO
+		tco.acuerdo([empresa_id],[linea_id],[servicio_id],[fecha_inicio],[fecha_fin],[estado],[usuario_registro_id])
+	VALUES
+		(@Cliente_id, @Linea_id, @Servicio_id, @Fecha_inicio, @Fecha_fin, @Activo, @Usuario_id)
+
+	SET @estado = 1
+	SET @mensaje = 'Se registró la exoneración correctamente'
+		
+END TRY
+BEGIN CATCH
+	
+	DECLARE @log_id INT, @el INT = ERROR_LINE(), @en INT = ERROR_NUMBER(), @em NVARCHAR(4000) = ERROR_MESSAGE()
+	EXEC seg.log_registrar @Usuario_id, 'tco.acuerdo_registrar', @el, @en, @em, @log_id OUTPUT
+	SET @mensaje = CAST(@log_id AS VARCHAR)+' | '+ERROR_MESSAGE();
+	SET @estado = 0;
+
+END CATCH

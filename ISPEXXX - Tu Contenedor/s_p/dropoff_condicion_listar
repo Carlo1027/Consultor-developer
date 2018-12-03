@@ -1,0 +1,110 @@
+USE [Inland]
+GO
+/****** Object:  StoredProcedure [tco].[dropoff_condicion_listar]    Script Date: 3/12/2018 10:24:02 ******/
+SET ANSI_NULLS ON
+GO
+SET QUOTED_IDENTIFIER ON
+GO
+
+ALTER PROC [tco].[dropoff_condicion_listar] (
+	@Dropoff_id INT
+)
+AS
+
+SET NOCOUNT ON
+
+	/*SELECT
+		CON.condicion_id,
+		CON.contenedor_tipo,
+		CCT.descripcion AS contenedor_tipo_descripcion,
+		CON.contenedor_tamano,
+		CCA.descripcion AS contenedor_tamano_descripcion,
+		CON.indicador_ilimitado,
+		CON.cupo,
+		CON.indicador_dropoff,
+		CON.dropoff,
+		CON.tipo_moneda,
+		CTM.descripcion AS tipo_moneda_descripcion
+	FROM
+		tco.condicion CON
+		INNER JOIN ges.catalogo CCT ON CCT.catalogo_id = CON.contenedor_tipo
+		INNER JOIN ges.catalogo CCA ON CCA.catalogo_id = CON.contenedor_tamano
+		INNER JOIN ges.catalogo CTM ON CTM.catalogo_id = CON.tipo_moneda
+	WHERE
+		CON.dropoff_id = @Dropoff_id*/
+
+	DECLARE @Fecha_actual Date = GETDATE()
+
+	DECLARE @mes INT = month(@Fecha_actual)
+	DECLARE @anio INT = year(@Fecha_actual)
+
+	DECLARE @Tipo_operacion INT = 180 -- Operacion de Importacion
+	DECLARE @Estado_facturado INT = 2 -- Estado Liquidaciones Facturadas
+	
+	SELECT 
+		TAB1.condicion_id,
+		TAB1.contenedor_tipo,
+		TAB1.contenedor_tipo_descripcion,
+		TAB1.contenedor_tamano,
+		TAB1.contenedor_tamano_descripcion,
+		TAB1.indicador_ilimitado,
+		TAB1.cupo,
+		TAB1.indicador_dropoff,
+		TAB1.dropoff,
+		TAB1.tipo_moneda,
+		TAB1.tipo_moneda_descripcion,
+		SUM(TAB2.Usados_por_mes)
+	FROM (SELECT
+		CON.condicion_id,
+		CON.contenedor_tipo,
+		CCT.descripcion AS contenedor_tipo_descripcion,
+		CON.contenedor_tamano,
+		CCA.descripcion AS contenedor_tamano_descripcion,
+		CON.indicador_ilimitado,
+		CON.cupo,
+		CON.indicador_dropoff,
+		CON.dropoff,
+		CON.tipo_moneda,
+		CTM.descripcion AS tipo_moneda_descripcion
+	FROM
+		tco.condicion CON
+		INNER JOIN ges.catalogo CCT ON CCT.catalogo_id = CON.contenedor_tipo
+		INNER JOIN ges.catalogo CCA ON CCA.catalogo_id = CON.contenedor_tamano
+		INNER JOIN ges.catalogo CTM ON CTM.catalogo_id = CON.tipo_moneda
+	WHERE
+		CON.dropoff_id = @Dropoff_id) TAB1
+
+	LEFT JOIN (SELECT B.condicion_id, A.ciudad_id, BB.deposito_id, COUNT(*) as Usados_por_mes
+	FROM tco.dropoff A
+		INNER JOIN tco.condicion B ON B.dropoff_id = A.dropoff_id
+		INNER JOIN tco.doc_transporte AA ON AA.empresa_id = A.empresa_id
+		INNER JOIN tco.doc_transporte_detalle CC ON CC.doc_transporte_id = AA.doc_transporte_id
+		INNER JOIN tco.liquidacion_detalle BB ON BB.doc_transporte_detalle_id = CC.doc_transporte_detalle_id
+		INNER JOIN tco.liquidacion DD ON DD.liquidacion_id = BB.liquidacion_id
+		INNER JOIN tco.deposito EE ON EE.deposito_id = BB.deposito_id AND EE.ciudad_id = A.ciudad_id
+		INNER JOIN ges.ubigeo FF ON FF.ubigeo_id = EE.ciudad_id
+	WHERE 
+		DD.estado = @Estado_facturado 
+		AND month(DD.fecha_registro) = @mes 
+		AND year(DD.fecha_registro) = @anio 
+
+		AND A.fecha_inicio <= @Fecha_actual
+		AND A.fecha_fin >= @Fecha_actual
+
+		AND AA.tipo_operacion = @Tipo_operacion
+		AND CC.contenedor_tipo = B.contenedor_tipo
+		AND CC.contenedor_tamano = B.contenedor_tamano
+		AND A.dropoff_id = @Dropoff_id
+		AND (A.deposito_id IS NULL OR (A.deposito_id = EE.deposito_id))
+	GROUP BY B.condicion_id, A.ciudad_id, BB.deposito_id) TAB2 ON TAB2.condicion_id = TAB1.condicion_id
+	GROUP BY TAB1.condicion_id,
+		TAB1.contenedor_tipo,
+		TAB1.contenedor_tipo_descripcion,
+		TAB1.contenedor_tamano,
+		TAB1.contenedor_tamano_descripcion,
+		TAB1.indicador_ilimitado,
+		TAB1.cupo,
+		TAB1.indicador_dropoff,
+		TAB1.dropoff,
+		TAB1.tipo_moneda,
+		TAB1.tipo_moneda_descripcion

@@ -1,0 +1,72 @@
+USE [Inland]
+GO
+/****** Object:  StoredProcedure [tco].[bls_liquidar_depositos_listar]    Script Date: 3/12/2018 10:19:20 ******/
+SET ANSI_NULLS ON
+GO
+SET QUOTED_IDENTIFIER ON
+GO
+
+ALTER PROC [tco].[bls_liquidar_depositos_listar] (
+	@Doc_transporte_detalle_id INT
+)
+AS
+
+SET NOCOUNT ON
+
+	DECLARE @Fecha_actual Date = GETDATE()
+
+	SELECT DISTINCT(ComboPatios.deposito_id), ComboPatios.nombre, ComboPatios.condicion_id, ComboPatios.dropoff_id
+	FROM (
+		--CON DEPOSITO CON CONDICION
+		SELECT A.deposito_id, F.nombre, B.condicion_id, A.dropoff_id
+		FROM tco.dropoff A
+		INNER JOIN tco.condicion B ON B.dropoff_id = A.dropoff_id
+		INNER JOIN tco.doc_transporte_detalle C ON C.contenedor_tipo = B.contenedor_tipo AND C.contenedor_tamano = B.contenedor_tamano
+		INNER JOIN tco.doc_transporte D ON D.doc_transporte_id = C.doc_transporte_id
+		INNER JOIN tco.deposito F ON F.deposito_id = A.deposito_id
+		WHERE 
+			C.doc_transporte_detalle_id = @Doc_transporte_detalle_id
+			AND A.fecha_inicio <= @Fecha_actual
+			AND A.fecha_fin >= @Fecha_actual
+
+		UNION
+
+		--SIN DEPOSITO CON CONDICION
+		SELECT F.deposito_id, F.nombre, B.condicion_id, A.dropoff_id
+		FROM tco.dropoff A
+		INNER JOIN tco.condicion B ON B.dropoff_id = A.dropoff_id
+		INNER JOIN tco.doc_transporte_detalle C ON C.contenedor_tipo = B.contenedor_tipo AND C.contenedor_tamano = B.contenedor_tamano
+		INNER JOIN tco.doc_transporte D ON D.doc_transporte_id = C.doc_transporte_id
+		LEFT JOIN tco.deposito F ON F.ciudad_id = A.ciudad_id
+		WHERE C.doc_transporte_detalle_id = @Doc_transporte_detalle_id AND A.deposito_id IS NULL
+			AND A.fecha_inicio <= @Fecha_actual
+			AND A.fecha_fin >= @Fecha_actual
+
+		UNION
+
+		--SIN DEPOSITO SIN CONDICION 
+		SELECT F.deposito_id, F.nombre, B.condicion_id, A.dropoff_id
+		FROM tco.dropoff A
+		LEFT JOIN tco.condicion B ON B.dropoff_id = A.dropoff_id
+		INNER JOIN tco.doc_transporte C ON A.empresa_id = C.empresa_id
+		INNER JOIN tco.doc_transporte_detalle D ON D.doc_transporte_id = C.doc_transporte_id
+		LEFT JOIN tco.deposito F ON F.ciudad_id = A.ciudad_id
+		WHERE B.dropoff_id IS NULL AND D.doc_transporte_detalle_id = @Doc_transporte_detalle_id AND A.deposito_id IS NULL
+			AND A.fecha_inicio <= @Fecha_actual
+			AND A.fecha_fin >= @Fecha_actual
+
+		UNION
+
+		--CON DEPOSITO SIN CONDICION
+		SELECT F.deposito_id, F.nombre, B.condicion_id, A.dropoff_id
+		FROM tco.dropoff A
+		LEFT JOIN tco.condicion B ON B.dropoff_id = A.dropoff_id
+		INNER JOIN tco.doc_transporte C ON A.empresa_id = C.empresa_id
+		INNER JOIN tco.doc_transporte_detalle D ON D.doc_transporte_id = C.doc_transporte_id
+		INNER JOIN tco.deposito F ON A.deposito_id = F.deposito_id
+		WHERE B.dropoff_id IS NULL AND D.doc_transporte_detalle_id = @Doc_transporte_detalle_id
+			AND A.fecha_inicio <= @Fecha_actual
+			AND A.fecha_fin >= @Fecha_actual
+	) as ComboPatios
+
+

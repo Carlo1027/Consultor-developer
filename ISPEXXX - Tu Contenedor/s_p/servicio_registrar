@@ -1,0 +1,38 @@
+USE [Inland]
+GO
+/****** Object:  StoredProcedure [tco].[servicio_registrar]    Script Date: 3/12/2018 10:27:15 ******/
+SET ANSI_NULLS ON
+GO
+SET QUOTED_IDENTIFIER ON
+GO
+
+ALTER PROC [tco].[servicio_registrar] (
+	@Unidad_negocio_id INT,
+	@Nombre VARCHAR(100),
+	@Indicador_especial CHAR(1),
+	@EstadoServicio CHAR(1),
+	@Usuario_id INT,
+	@estado INT OUT,
+	@mensaje varchar(max) OUT 
+)
+AS
+SET NOCOUNT ON
+BEGIN TRY
+
+	INSERT INTO 
+		tco.servicio (unidad_negocio_id, nombre, indicador_especial, estado, usuario_registro_id)
+    VALUES
+           (@Unidad_negocio_id, @Nombre, @Indicador_especial, @EstadoServicio, @Usuario_id)
+
+	SET @estado = 1
+	SET @mensaje = 'Se registró el servicio correctamente'
+		
+END TRY
+BEGIN CATCH
+	
+	DECLARE @log_id INT, @el INT = ERROR_LINE(), @en INT = ERROR_NUMBER(), @em NVARCHAR(4000) = ERROR_MESSAGE()
+	EXEC seg.log_registrar @Usuario_id, 'tco.servicio_registrar', @el, @en, @em, @log_id OUTPUT
+	SET @mensaje = CAST(@log_id AS VARCHAR)+' | '+ERROR_MESSAGE();
+	SET @estado = 0;
+
+END CATCH

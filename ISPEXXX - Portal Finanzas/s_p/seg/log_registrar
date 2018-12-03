@@ -1,0 +1,24 @@
+USE [Inland]
+GO
+/****** Object:  StoredProcedure [seg].[log_registrar]    Script Date: 3/12/2018 10:55:50 ******/
+SET ANSI_NULLS ON
+GO
+SET QUOTED_IDENTIFIER ON
+GO
+ALTER PROC [seg].[log_registrar]
+	@Usuario_registro_id INT,
+	@Origen VARCHAR(100),
+	@Linea INT,
+	@Numero_error INT,
+	@Mensaje NVARCHAR(MAX),
+	@Log_id INT OUT
+AS
+
+SET NOCOUNT ON
+
+    INSERT INTO
+		seg.log (usuario_registro_id, origen, linea, numero_error, mensaje, fecha_registro) 
+	VALUES
+		(@Usuario_registro_id, @Origen, @Linea, @Numero_error, @Mensaje,CURRENT_TIMESTAMP)
+	SET @Log_id = @@IDENTITY
+	

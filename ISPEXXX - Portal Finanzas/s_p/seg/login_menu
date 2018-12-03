@@ -1,0 +1,107 @@
+USE [Inland]
+GO
+/****** Object:  StoredProcedure [seg].[login_menu]    Script Date: 3/12/2018 10:56:16 ******/
+SET ANSI_NULLS ON
+GO
+SET QUOTED_IDENTIFIER ON
+GO
+ALTER PROCEDURE [seg].[login_menu] (
+	@Origen char(3),
+	@Usuario VARCHAR(100),
+	@Unidad_negocio_id VARCHAR(10), -- Unidad de Negocio
+	@Menu_id VARCHAR(10) -- Proyecto
+) AS
+SET NOCOUNT ON 
+
+	IF @Origen = 'IND'
+	BEGIN
+
+		DECLARE @menu_base_id INT
+
+		SELECT
+			@menu_base_id = MEN.menu_id
+		FROM
+			seg.menu MEN
+		WHERE
+			MEN.plantilla = @Menu_id AND
+			MEN.menu_padre_id IS NULL AND
+			MEN.menu_base_id IS NULL AND
+			MEN.estado = 1
+		
+		SELECT DISTINCT
+			MEN.menu_id,
+			CASE WHEN MEN.menu_padre_id = @menu_base_id THEN @Menu_id ELSE CONCAT('',MEN.menu_padre_id) END,
+			MEN.titulo,
+			MEN.icono,
+			MEN.plantilla,
+			MEN.tiene_id,
+			MEN.orden
+		FROM
+			seg.menu MEN
+			INNER JOIN seg.rol_menu ROM ON ROM.menu_id = MEN.menu_id
+			INNER JOIN seg.rol ROL ON ROL.rol_id = ROM.rol_id
+			INNER JOIN seg.usuario_rol USR ON USR.rol_id = ROL.rol_id
+			INNER JOIN seg.usuario USU ON USU.usuario_id = USR.usuario_id
+			INNER JOIN seg.rol_unidad_negocio RUN ON RUN.rol_id = ROL.rol_id
+			INNER JOIN seg.unidad_negocio UNI ON UNI.unidad_negocio_id = RUN.unidad_negocio_id
+		WHERE
+			MEN.menu_base_id = @menu_base_id AND
+			USU.usuario_id = @Usuario AND
+			UNI.unidad_negocio_id = @Unidad_negocio_id AND
+			MEN.estado = 1 AND
+			ROL.estado = 1 AND
+			USU.estado = 1 AND
+			UNI.estado = 1
+		ORDER BY 
+			MEN.orden ASC
+
+		RETURN
+
+	END
+
+	IF @Origen = 'ARG'
+	BEGIN
+		
+		DECLARE @SistemaID INT
+		SELECT @SistemaID = SistemaID FROM Argos.dbo.TCSistema WHERE id = @Menu_id
+
+		SELECT DISTINCT
+			MEN.MenuID,
+			CASE WHEN MEN.MenuPadre = 0 THEN @Menu_id ELSE CAST(MEN.MenuPadre AS VARCHAR) END,
+			MEN.Descripcion,
+			MEN.VariableTexto AS Icono,
+			MEN.Formulario,
+			MEN.Indice AS TieneId
+		FROM
+			Argos.dbo.TMMenu MEN 
+			INNER JOIN Argos.dbo.TMMenuPerfil MPE ON MEN.MenuID = MPE.MenuID
+			INNER JOIN Argos.dbo.TMPerfilUsuario PEU ON PEU.PerfilID = MPE.PerfilID AND PEU.EmpresaID = @Unidad_negocio_id AND PEU.SistemaID = @SistemaID AND PEU.UsuarioID = @Usuario
+		WHERE
+			MEN.SistemaID = @SistemaID AND
+			MEN.Estado = 1
+		ORDER BY 1 ASC
+
+		RETURN
+
+	END
+
+	IF @Origen = 'FLG'
+	BEGIN
+
+		SELECT
+			me.MenuID,
+			@Menu_id,
+			me.Descripcion,
+			me.Icono,
+			me.Url,
+			0 
+		FROM
+			db_averias.dbo.PerfilMenu pm
+			INNER JOIN db_averias.dbo.Menu me ON pm.MenuID = me.MenuID AND me.Estado = 1
+		WHERE
+			pm.PerfilID = '17' AND
+			pm.Estado = 1
+
+		RETURN
+
+	END

@@ -1,0 +1,84 @@
+USE [Inland]
+GO
+/****** Object:  StoredProcedure [seg].[notificacion_registrar]    Script Date: 3/12/2018 10:58:34 ******/
+SET ANSI_NULLS ON
+GO
+SET QUOTED_IDENTIFIER ON
+GO
+ALTER PROC [seg].[notificacion_registrar] (
+	@Titulo VARCHAR(50),
+	@Subtitulo VARCHAR(MAX),
+	@Descripcion VARCHAR(MAX),
+	@Icono VARCHAR(100),
+	@Nivel CHAR(1),
+	@Unica_vez CHAR(1),
+	@Unica_alerta CHAR(1),
+	@Fecha_caducidad DATETIME,
+	@EstadoNotificacion CHAR(1),
+	@Roles VARCHAR(MAX), -- [{"rol_id":4},{"rol_id":5}]
+	@Usuario_id INT,
+	@estado INT OUT,
+	@mensaje varchar(max) OUT 
+)
+AS
+
+SET NOCOUNT ON 
+
+	BEGIN TRY
+		
+		DECLARE @Notificacion_id INT
+
+		-- 1. Inserting notification
+		INSERT INTO [seg].[notificacion]
+				   ([titulo]
+				   ,[subtitulo]
+				   ,[descripcion]
+				   ,[icono]
+				   ,[nivel]
+				   ,[unica_vez]
+				   ,[unica_alerta]
+				   ,[fecha_caducidad]
+				   ,[estado]
+				   ,[fecha_registro]
+				   ,[usuario_registro_id])
+			 VALUES
+				   (@Titulo
+				   ,@Subtitulo
+				   ,@Descripcion
+				   ,@Icono
+				   ,@Nivel
+				   ,@Unica_vez
+				   ,@Unica_alerta
+				   ,@Fecha_caducidad
+				   ,@EstadoNotificacion
+				   ,CURRENT_TIMESTAMP
+				   ,@Usuario_id)
+		SELECT @Notificacion_id = SCOPE_IDENTITY()
+
+		-- 2. Getting roles
+		DECLARE @T_roles TABLE(
+			parent_ID INT,
+			rol_id INT
+		)
+
+		INSERT @T_roles
+		EXEC [ges].[json_listar] @Roles
+
+		-- 3. Inserting roles
+		INSERT INTO 
+			[seg].[notificacion_rol] ([notificacion_id], [rol_id])
+		SELECT
+			@Notificacion_id, rol_id
+		FROM
+			@T_roles
+
+		SET @estado = 1
+		SET @mensaje = 'Notificación registrada correctamente'
+			
+	END TRY
+	BEGIN CATCH
+
+		SET @estado = 0;
+		SET @mensaje = ERROR_MESSAGE();
+		
+	END CATCH

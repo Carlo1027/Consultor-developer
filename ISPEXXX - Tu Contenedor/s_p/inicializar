@@ -1,0 +1,57 @@
+USE [Inland]
+GO
+/****** Object:  StoredProcedure [tco].[inicializar]    Script Date: 3/12/2018 10:25:21 ******/
+SET ANSI_NULLS ON
+GO
+SET QUOTED_IDENTIFIER ON
+GO
+ALTER PROC [tco].[inicializar]
+	@Unidad_negocio_id INT,
+	@Catalogos_id VARCHAR(1000),  -- 1,2,3,4,
+	@Roles_id VARCHAR(1000)
+AS
+
+SET NOCOUNT ON
+	
+	-- Listando las configuraciónes por Unidades de negocio
+	SELECT 
+		CAL.descripcion,
+		UNC.valor
+	FROM 
+		seg.unidad_negocio_config UNC 
+		INNER JOIN ges.catalogo CAL ON CAL.catalogo_id = UNC.tipo_configuracion
+	WHERE
+		UNC.unidad_negocio_id = @Unidad_negocio_id AND
+		UNC.estado = '1'
+
+	-- Listando catálogos
+	EXEC ges.catalogo_listar @Unidad_negocio_id, @Catalogos_id
+
+	-- Depósitos
+	SELECT DEP.deposito_id, DEP.nombre, DEP.ciudad_id FROM tco.deposito DEP WHERE DEP.estado = '1' ORDER BY DEP.nombre ASC
+
+	IF CHARINDEX(',14,', ','+@Roles_id+',') > 0 -- ROL 14 LINEA
+	BEGIN
+		
+		-- Clientes
+		SELECT EMP.empresa_id, EMP.razon_social FROM ges.empresa EMP WHERE EMP.unidad_negocio_id = @Unidad_negocio_id AND EMP.estado = '1' ORDER BY EMP.razon_social ASC
+
+		-- Ciudades
+		SELECT CIU.ciudad_id, UBI.nombre FROM ges.ubigeo UBI INNER JOIN tco.ciudad CIU ON CIU.ciudad_id = UBI.ubigeo_id WHERE UBI.unidad_negocio_id = @Unidad_negocio_id AND UBI.estado = '1' ORDER BY UBI.nombre ASC
+
+		-- Lineas
+		SELECT LIN.linea_id, LIN.nombre FROM tco.linea LIN WHERE LIN.estado = '1' ORDER BY LIN.nombre ASC
+		
+		-- Servicios
+		SELECT SER.servicio_id, SER.nombre FROM tco.servicio SER WHERE SER.estado = '1' AND SER.unidad_negocio_id = @Unidad_negocio_id ORDER BY SER.nombre ASC
+
+	END
+	ELSE
+	BEGIN
+
+		SELECT ''
+		SELECT ''
+		SELECT ''
+		SELECT ''
+
+	END

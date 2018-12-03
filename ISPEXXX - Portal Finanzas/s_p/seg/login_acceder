@@ -1,0 +1,236 @@
+USE [Inland]
+GO
+/****** Object:  StoredProcedure [seg].[login_acceder]    Script Date: 3/12/2018 10:56:03 ******/
+SET ANSI_NULLS ON
+GO
+SET QUOTED_IDENTIFIER ON
+GO
+ALTER PROCEDURE [seg].[login_acceder] (--@jpoConfig{setBody : true}
+	@Usuario VARCHAR(100),
+	@ClaveMD5 VARCHAR(50),
+	@Sistema_id INT
+) AS
+--@jpoOutput{result : 'data {userid : string, id : string, name : string, lastName : string, lastMiddle : string, company : string, companyId : string, changePassword : string, daysChangekey : string, source : string, token : string}'}
+--@jpoOutputs{result : 'profiles {id : string, businessName : string, default : string}'}
+--@jpoOutputs{result : 'roles {id : string, idUN : string}'}
+--@jpoOutputs{result : 'systems {id : string, description : string, icon : string}'}
+--@jpoOutputs{result : 'systemByProfile {systemId : string, profileId : string}'}
+--@jpoOutput{result : 'system {version : string, nivel : number, deploymentDate : Date}'}
+--@jpoOutputs{result : 'adds {id : number, type : number, icon : string, title : string, subtitle : string, description : string, nivel : string, onlyOne : string, onlyOneAlert : string, dueDate : Date, read : number, sendDate : Date}'}
+--@jpoOutputs{result : 'rules {regla_id : number, parametros : string}'}
+
+SET NOCOUNT ON 
+
+	DECLARE @Tabla_persona TABLE(
+		usuario_id VARCHAR(10),
+		codigo VARCHAR(100),
+		nombre VARCHAR(100),
+		apellido_paterno VARCHAR(100),
+		apellido_materno VARCHAR(100),
+		empresa VARCHAR(100),
+		documento VARCHAR(20),
+		clave_cambiar char(1),
+		clave_dias NUMERIC,
+		origen char(3)
+	)
+
+	-- 1. INLAND
+	INSERT INTO @Tabla_persona
+	SELECT 
+		USU.usuario_id,    
+		USU.id,    
+		USU.nombres,
+		USU.apellido_paterno,
+		USU.apellido_materno,    
+		EMP.razon_social,
+		EMP.documento,
+		CASE WHEN DATEDIFF(day,USU.fecha_cambio_clave,GETDATE()) = 0 THEN 1 ELSE 0 END AS clave_cambiar,
+		DATEDIFF(day,GETDATE(),USU.fecha_cambio_clave),
+		'IND'
+	FROM  
+		seg.usuario USU
+		INNER JOIN ges.empresa EMP ON USU.empresa_id = EMP.empresa_id
+	WHERE 
+		USU.id = @Usuario AND 
+		USU.clave = @ClaveMD5 AND
+		USU.estado = 1 AND
+		EMP.estado = 1
+
+	IF EXISTS (SELECT * FROM @Tabla_persona WHERE origen = 'IND')
+	BEGIN
+
+		DECLARE @Usuario_id INT
+		SELECT TOP 1 @Usuario_id = usuario_id FROM @Tabla_persona
+
+		-- 1.1. Listando el usuario - data
+		SELECT * FROM @Tabla_persona
+
+		-- 1.2. Listando empresas - profiles
+		SELECT DISTINCT
+			UNI.unidad_negocio_id AS unidad_negocio_id,
+			UNI.nombre  AS unidad_negocio,
+			(CASE WHEN USC.unidad_negocio_id IS NOT NULL THEN 1 ELSE 0 END) AS predefinido
+		FROM
+			seg.unidad_negocio UNI
+			INNER JOIN seg.rol_unidad_negocio RUN ON UNI.unidad_negocio_id = RUN.unidad_negocio_id
+			INNER JOIN seg.rol ROL ON ROL.rol_id = RUN.rol_id
+			INNER JOIN seg.usuario_rol USR ON USR.rol_id = ROL.rol_id AND USR.usuario_id = @Usuario_id
+			LEFT JOIN seg.usuario_config USC ON USC.unidad_negocio_id = UNI.unidad_negocio_id
+		WHERE
+			UNI.estado = 1 AND
+			ROL.estado = 1
+
+		-- 1.3. Listando Roles - roles
+		SELECT
+			RUN.rol_id,
+			RUN.unidad_negocio_id
+		FROM
+			seg.rol_unidad_negocio RUN
+			INNER JOIN seg.rol ROL ON ROL.rol_id = RUN.rol_id
+			INNER JOIN seg.usuario_rol USR ON USR.rol_id = ROL.rol_id AND USR.usuario_id = @Usuario_id
+		WHERE
+			ROL.estado = 1
+
+		-- 1.4. Listando Proyectos - systems
+		SELECT DISTINCT
+			MEN.plantilla,
+			MEN.titulo,
+			MEN.icono,
+			MEN.menu_id
+		FROM
+			seg.menu MEN
+			INNER JOIN seg.rol_menu ROM ON ROM.menu_id = MEN.menu_id
+			INNER JOIN seg.rol ROL ON ROL.rol_id = ROM.rol_id
+			INNER JOIN seg.usuario_rol USR ON USR.rol_id = ROL.rol_id AND USR.usuario_id = @Usuario_id
+		WHERE
+			MEN.estado = 1 AND
+			ROL.estado = 1 AND
+			MEN.menu_padre_id IS NULL -- For parents
+
+		-- 1.5. Listando Proyectos por Unidad de Negocio - systems
+		SELECT DISTINCT MEN.plantilla, UNI.unidad_negocio_id FROM seg.rol_menu ROM
+			INNER JOIN seg.usuario_rol USR ON USR.rol_id = ROM.rol_id AND USR.usuario_id = @Usuario_id
+			INNER JOIN seg.menu MEN ON ROM.menu_id = MEN.menu_id AND MEN.menu_padre_id IS NULL
+			INNER JOIN seg.rol_unidad_negocio RUN ON RUN.rol_id = ROM.rol_id
+			INNER JOIN seg.unidad_negocio UNI ON UNI.unidad_negocio_id = RUN.unidad_negocio_id
+		WHERE
+			MEN.estado = 1 AND
+			MEN.menu_padre_id IS NULL -- For parents
+
+		-- 1.6. Obtiene la versión del sistema y las notificaciones
+		EXEC seg.sistema_validar @Usuario_id, @Sistema_id
+
+		-- 1.7. Obtiene las reglas de negocio
+		EXEC seg.regla_listar @Sistema_id, '1'
+
+		-- 1.8. Obtiene los términos y condiciones
+		SELECT 
+			DISTINCT(TER.unidad_negocio_id)
+		FROM seg.menu MEN
+		INNER JOIN ges.termino TER ON TER.menu_id = MEN.menu_id
+		INNER JOIN seg.rol_menu RMN ON RMN.menu_id = MEN.menu_id
+		INNER JOIN seg.usuario_rol URL ON URL.rol_id = RMN.rol_id
+		WHERE MEN.menu_padre_id IS NULL AND 
+			TER.estado = 1 AND 
+			URL.usuario_id = @Usuario_id
+		
+		-- 1.9. Obtiene los faqs
+		SELECT 
+			DISTINCT(FAQ.unidad_negocio_id)
+		FROM seg.menu MEN
+		INNER JOIN ges.faq FAQ ON FAQ.menu_id = MEN.menu_id
+		INNER JOIN seg.rol_menu RMN ON RMN.menu_id = MEN.menu_id
+		INNER JOIN seg.usuario_rol URL ON URL.rol_id = RMN.rol_id
+		WHERE MEN.menu_padre_id IS NULL AND 
+			FAQ.estado = 1 AND 
+			URL.usuario_id = @Usuario_id
+
+		RETURN
+
+	END
+	
+	-- 2. ARGOS
+	INSERT INTO @Tabla_persona
+	SELECT 
+		USU.UsuarioID,    
+		USU.Codigo,    
+		PER.Nombre,
+		PER.ApellidoPaterno,
+		PER.ApellidoMaterno,    
+		CLI.RazonSocial,
+		'',
+		CASE WHEN DATEDIFF(day,USU.CambioClave,GETDATE()) = 0 THEN 1 ELSE 0 END AS clave_cambiar,
+		DATEDIFF(day,GETDATE(),USU.CambioClave),
+		'ARG'
+	FROM  
+		Argos.dbo.TMUsuario USU (NOLOCK)    
+		INNER JOIN Argos.dbo.TMPersona PER (NOLOCK) ON USU.Documento = PER.Documento AND PER.Estado = 1
+		LEFT JOIN Argos.dbo.TMCliente CLI ON PER.ClienteIDh = CLI.ClienteID
+	WHERE 
+		USU.Codigo = @Usuario AND 
+		USU.Clave = @ClaveMD5 AND
+		USU.Estado = 1
+
+	IF EXISTS (SELECT * FROM @Tabla_persona WHERE origen = 'ARG')
+	BEGIN
+		
+		-- 2.1. Listando el usuario
+		SELECT * FROM @Tabla_persona
+
+		-- 2.2., 2.3., 2.4. Listando empresa, roles y Proyectos
+		EXEC Argos.dbo.IND_login_unidad_negocio @Usuario
+
+		-- 2.5
+		SELECT ''
+
+		-- 2.6. Obtiene la versión del sistema
+		EXEC seg.sistema_validar NULL, @Sistema_id
+		
+		RETURN
+
+	END
+
+	-- 3. FAUTLOG
+	INSERT INTO @Tabla_persona
+	SELECT 
+		per.UsuarioID,
+		per.NombreUsuario,
+		per.Nombre, 
+		'',
+		'',
+		'APM TERMINALS INLAND SERVICES S.A.',
+		'',
+		CASE WHEN DATEDIFF(day,per.CaducidadClave,GETDATE()) = 0 THEN 1 ELSE 0 END AS clave_cambiar,
+		DATEDIFF(day,GETDATE(),per.CaducidadClave),
+		'FLG'
+	FROM 
+		db_averias.dbo.Usuario per
+	WHERE
+		LOWER(per.NombreUsuario) = LOWER(@Usuario) and
+		per.Clave = @ClaveMD5 and
+		per.Estado = '1'
+
+	IF EXISTS (SELECT * FROM @Tabla_persona WHERE origen = 'FLG')
+	BEGIN
+
+		-- 3.1. Listando el usuario
+		SELECT * FROM @Tabla_persona
+
+		-- 3.2. Listando empresas
+		SELECT 'FAULTLOG', 'AVERÍAS', '1'
+
+		-- 3.2. Listando roles
+		SELECT 'ROL_FLG_PDA'
+
+		-- 3.4. Listando Proyectos
+		SELECT 'flg', 'FaultLog', 'fas fa-ambulance'
+
+		-- 3.5
+		SELECT 'flg', 'FAULTLOG'
+
+		-- 3.6. Obtiene la versión del sistema
+		EXEC seg.sistema_validar NULL, @Sistema_id
+
+		RETURN
+
+	END

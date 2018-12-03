@@ -1,0 +1,26 @@
+USE [Inland]
+GO
+/****** Object:  StoredProcedure [seg].[rol_listar]    Script Date: 3/12/2018 10:58:57 ******/
+SET ANSI_NULLS ON
+GO
+SET QUOTED_IDENTIFIER ON
+GO
+ALTER PROC [seg].[rol_listar] (
+	@Page INT,
+	@Size INT
+)
+AS
+--@jpoOutput{result : 'response {total : number}'}
+--@jpoOutputs{result : 'roles {rol_id : number, nombre : string}'}
+
+SET NOCOUNT ON 
+
+	SELECT COUNT(*)
+	FROM [Inland].[seg].[rol]
+
+	SELECT [rol_id]
+		  ,[nombre]
+	FROM [Inland].[seg].[rol]
+	ORDER BY nombre ASC
+	OFFSET ((@Page - 1) * @Size) ROWS
+	FETCH NEXT @Size ROWS ONLY

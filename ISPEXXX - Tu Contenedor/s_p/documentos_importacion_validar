@@ -1,0 +1,83 @@
+USE [Inland]
+GO
+/****** Object:  StoredProcedure [tco].[documentos_importacion_validar]    Script Date: 3/12/2018 10:23:48 ******/
+SET ANSI_NULLS ON
+GO
+SET QUOTED_IDENTIFIER ON
+GO
+
+ALTER PROC [tco].[documentos_importacion_validar] (
+	@Listado_documentos XML,
+	@Listado_alias VARCHAR(MAX),
+	@Separador CHAR(1)
+)
+AS
+
+SET NOCOUNT ON
+
+	DECLARE @temp TABLE(
+		Indice INT IDENTITY(1,1),
+		documento_bl VARCHAR(50),
+		contenedor VARCHAR(50)
+	)
+
+	IF(@Listado_documentos IS NOT NULL)
+	BEGIN
+		INSERT INTO @temp		
+		SELECT 
+			C.value('NumeroDocumento[1]','varchar(50)') AS documento_bl,
+			C.value('NumeroContenedor[1]','varchar(50)') AS contenedor
+		FROM @Listado_documentos.nodes('/Documento') AS T(C)
+	END
+
+	-- BLs repetidos
+	SELECT A.Indice, A.documento_bl, A.contenedor, B.doc_transporte_id
+	FROM @temp A
+	INNER JOIN inland.tco.doc_transporte B ON B.numero_documento = A.documento_bl
+	INNER JOIN inland.tco.doc_transporte_detalle C ON C.contenedor = A.contenedor
+
+	-- Para las empresas
+	DECLARE @temp2 TABLE(
+		Indice INT,
+		data VARCHAR(50)
+	)
+
+	DECLARE @Counter INT
+	SET @Counter = 1
+
+	WHILE ( CHARINDEX(@Separador, @Listado_alias) > 0 )
+		BEGIN
+			INSERT INTO @temp2 (Indice, data )
+			SELECT Indice = @Counter, Data = LTRIM(RTRIM(SUBSTRING(@Listado_alias, 1, CHARINDEX(@Separador, @Listado_alias) - 1)))
+            
+			SET @Listado_alias = SUBSTRING(@Listado_alias, CHARINDEX(@Separador, @Listado_alias) + 1, LEN(@Listado_alias))
+			SET @Counter = @Counter + 1
+		END
+
+		INSERT INTO @temp2
+		SELECT Indice = @Counter , Data = LTRIM(RTRIM(@Listado_alias))
+
+	IF(SELECT COUNT(*) FROM @temp2 A INNER JOIN inland.tco.empresa_alias B ON B.alias = A.data) = (SELECT COUNT(*) FROM @temp2)
+	BEGIN
+		SELECT 1 Estado
+
+		--Alias de empresas registradas
+		SELECT A.Indice, A.data, B.empresa_id
+		FROM @temp2 A
+		INNER JOIN inland.tco.empresa_alias B ON B.alias = A.data
+		ORDER BY 1 ASC
+	END
+	ELSE
+	BEGIN
+		SELECT 0 Estado
+
+		-- Empresas sin alias (no registradas)
+		SELECT A.Indice, A.data, B.empresa_id
+		FROM @temp2 A
+		LEFT JOIN inland.tco.empresa_alias B ON B.alias = A.data
+		WHERE B.empresa_id IS NULL
+		ORDER BY 1 ASC
+	END
+	
+
+	

@@ -1,0 +1,55 @@
+USE [Inland]
+GO
+/****** Object:  StoredProcedure [prh].[ficha_laboral_obtener]    Script Date: 3/12/2018 09:58:26 ******/
+SET ANSI_NULLS ON
+GO
+SET QUOTED_IDENTIFIER ON
+GO
+ALTER PROC [prh].[ficha_laboral_obtener]
+	@colaborador_id bigint
+AS
+--@jpoOutput{result : 'info_organizacional { org_id : number, ficha_laboral_id : number, uniqueID : string, fechaIngreso : Date, condicion : number, posicion : string, jobLevel : number, businessUnit : number, sede : string, jefe : string, coordinador : string, supervisor : string, gerente : string, correoCorporativo : string, area : string, subArea : string, leadershipRole : number, calificacion : number, tipoFiscalizacion : number, liScore : string, piScore : number, modalidadContrato : number, fechaTermino : Date, motivo : number, reingreso : number, horario : number, numeroSalarios : number, eps : number, tipoPlanilla : number, moneda : number, salario : string}'}
+--@jpoOutput{result : 'info_personal {ficha_laboral_id : number, usuario_id : number, photoId : number, nombres : string, apellidoPaterno : string, apellidoMaterno : string, genero : number, fechaNacimiento : Date, documentoIdentidad : number, numeroDocumentoIdentidad : string, estadoCivil : number, telefonoDomicilio : string, telefonoCelular : string, nacimientoDistrito : string, nacimientoProvincia : string, nacimientoDepartamento : string, nacimientoPais : string, breveteCategoria : string, breveteFechaExpiracion : string, breveteNumero : string, correoPersonal : string, domicilioDireccion : string, domicilioDistrito : string, domicilioProvincia : string, domicilioDepartamento : string, domicilioPais : string, domicilioReferencia : string, photoBase64 : string}'}
+--@jpoOutputs{result : 'info_familiar {ficha_laboral_familiar_id : number, ficha_laboral_id : number, nombreCompleto : string, documentoIdentidad : number, descripcionDocuIdentidad : string, numeroDocumentoIdentidad : string, fechaNacimiento : Date, genero : number, descripcionGenero : string, parentesco : number, descripcionParentesco : string}'}
+--@jpoOutput{result : 'info_fam_apm { ficha_laboral_fam_apm_id : number, ficha_laboral_id : number, nombreCompleto : string, area : string, posicion : string, uniqueID : string}'}
+--@jpoOutput{result : 'info_emergencia {ficha_laboral_emergencia_id : number, ficha_laboral_id : number, nombreCompleto : string, parentesco : number, descripcionParentesco : string, telefono : string, correo : string, direccion : string}'}
+--@jpoOutput{result : 'info_adicional {ficha_laboral_adicional_id : number, ficha_laboral_id : number, unicoAportar : string, otroIngreso : string, enfermedad : string, tratamientoDiscapacidad : string, situacionVivienda : number, serviciosAgua : string, serviciosLuz : string, serviciosCable : string, serviciosDesague : string, serviciosInternet : string, serviciosOtros : string, constitucionFamiliar : number, problemasFrecuentes : number, hijosUniversidad : number, hijosInstituto : number, hijosColegio : number, hijosOtro : number, centroEstudios : number, correoAsignado : number, celularAsignado : number, rutaIda : number, rutaVuelta : number, tallaPolo : number, tallaZapato : string, tallaPantalon : string, tallaCasaca : number, carnetConapdis : number, casilleroAsignado : string, correoRecibeBoletas : string, telefInfoSunat : string}'}
+--@jpoOutputs{result : 'info_educacion {educacion_id : number, ficha_laboral_id : number, centroEstudios : string, completa : number, carrera : string, fechaInicio : Date, fechaFin : Date, gradoObtenido : number}'}
+--@jpoOutputs{result : 'settings {settingId : number, estado : number}'}
+--@jpoOutput{result : 'result {id : number, mensaje : string}'}
+SET NOCOUNT ON
+
+BEGIN
+
+	DECLARE @EstadoFicha INT
+	
+	SELECT @EstadoFicha = Estado
+	FROM prh.ficha_laboral
+	WHERE usuario_id = @colaborador_id
+
+	EXEC prh.ficha_laboral_organizacional_id @colaborador_id
+	
+	EXEC prh.ficha_laboral_id @colaborador_id
+
+	EXEC prh.ficha_laboral_familiar_id @colaborador_id
+
+	EXEC prh.ficha_laboral_fam_apm_id @colaborador_id
+
+	EXEC prh.ficha_laboral_emergencia_id @colaborador_id
+
+	EXEC prh.ficha_laboral_adicional_id @colaborador_id
+
+	EXEC prh.ficha_laboral_educacion_id @colaborador_id
+
+	SELECT setting_id, estado
+	FROM prh.ficha_settings
+
+	IF(@EstadoFicha = 1)
+	BEGIN
+		select 1 id,@colaborador_id mensaje
+	END
+	ELSE
+	BEGIN
+		select 0 id,'El usuario no se encuentra activo' mensaje
+	END
+END

@@ -1,0 +1,67 @@
+USE [Inland]
+GO
+/****** Object:  StoredProcedure [tco].[bls_liquidar_obtener]    Script Date: 3/12/2018 10:19:39 ******/
+SET ANSI_NULLS ON
+GO
+SET QUOTED_IDENTIFIER ON
+GO
+
+ALTER PROC [tco].[bls_liquidar_obtener] (
+	@BL_id INT,
+	@Tipo_operacion INT
+)
+AS
+
+SET NOCOUNT ON
+
+	DECLARE @EstadoPendiente INT
+	SET @EstadoPendiente = 0
+
+	--Cabecera
+	SELECT B.doc_transporte_id,
+			B.empresa_id,
+			B.numero_documento as NumeroBL, 
+			B.nave+'/'+B.viaje+'/'+B.rumbo as NaveViajeRumbo, 
+			E.razon_social as Consignatario, 
+			F.linea_id as Linea_id, 
+			F.nombre as Linea,
+			@EstadoPendiente as Estado, 
+			null as FechaRegistro, 
+			COUNT(*) as contenedores
+	FROM tco.doc_transporte B
+	INNER JOIN tco.doc_transporte_detalle C ON C.doc_transporte_id = B.doc_transporte_id
+	INNER JOIN ges.empresa E ON E.empresa_id = B.empresa_id
+	INNER JOIN tco.linea F ON F.linea_id = B.linea_id
+
+	WHERE not exists (SELECT 1 FROM tco.liquidacion_detalle G  
+	LEFT JOIN tco.liquidacion H ON H.liquidacion_id = G.liquidacion_id
+	WHERE C.doc_transporte_detalle_id = G.doc_transporte_detalle_id AND H.estado != 3)
+	AND B.doc_transporte_id = @BL_id AND B.tipo_operacion=@Tipo_operacion
+	GROUP BY B.doc_transporte_id, B.empresa_id, B.numero_documento, B.nave+'/'+B.viaje+'/'+B.rumbo, E.razon_social, F.linea_id, F.nombre
+	
+	--Contenedores
+	SELECT C.doc_transporte_detalle_id, 
+			C.contenedor, 
+			C.contenedor_tipo, 
+			D.descripcion as descripcion_tipo, 
+			C.contenedor_tamano, 
+			E.descripcion as descripcion_tamano,
+			CASE @Tipo_operacion 
+				WHEN 180 THEN null 
+				WHEN 181 THEN M.nombre 
+				END AS descripcion_deposito,
+			CASE @Tipo_operacion 
+				WHEN 180 THEN null 
+				WHEN 181 THEN M.deposito_id
+				END AS deposito_id
+	FROM tco.doc_transporte A
+	INNER JOIN tco.doc_transporte_detalle B ON B.doc_transporte_id = A.doc_transporte_id
+	INNER JOIN tco.doc_transporte_detalle C ON C.doc_transporte_detalle_id = B.doc_transporte_detalle_id
+	INNER JOIN ges.catalogo D ON D.catalogo_id = B.contenedor_tipo
+	INNER JOIN ges.catalogo E ON E.catalogo_id = B.contenedor_tamano
+	LEFT JOIN tco.deposito M ON M.deposito_id = C.deposito_id
+
+	WHERE not exists (SELECT 1 FROM tco.liquidacion_detalle G  
+	LEFT JOIN tco.liquidacion H ON H.liquidacion_id = G.liquidacion_id
+	WHERE C.doc_transporte_detalle_id = G.doc_transporte_detalle_id AND H.estado != 3)
+	AND B.doc_transporte_id = @BL_id AND A.tipo_operacion=@Tipo_operacion

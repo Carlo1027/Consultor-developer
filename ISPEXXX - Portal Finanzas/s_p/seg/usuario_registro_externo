@@ -1,0 +1,21 @@
+USE [Inland]
+GO
+/****** Object:  StoredProcedure [seg].[usuario_registro_externo]    Script Date: 3/12/2018 11:02:28 ******/
+SET ANSI_NULLS ON
+GO
+SET QUOTED_IDENTIFIER ON
+GO
+ALTER PROC [seg].[usuario_registro_externo] (
+	@Id VARCHAR(100) 
+)
+AS
+
+SET NOCOUNT ON 
+
+	IF (SELECT COUNT(*) FROM seg.usuario WHERE id = @Id) = 0
+	BEGIN
+		INSERT INTO 
+			seg.usuario ([correo], [clave], [fecha_cambio_clave], [nombres], [apellido_paterno], [apellido_materno], [empresa_id], [estado], [usuario_registro_id], [adjunto_foto_id], [id])
+		VALUES
+			('', '', NULL, '', '', '', NULL, '1', 1, NULL, @Id)
+	END

@@ -1,0 +1,19 @@
+USE [Inland]
+GO
+/****** Object:  StoredProcedure [ges].[inicializar]    Script Date: 3/12/2018 10:52:06 ******/
+SET ANSI_NULLS ON
+GO
+SET QUOTED_IDENTIFIER ON
+GO
+ALTER PROC [ges].[inicializar]
+	@Unidad_negocio_id INT,
+	@Catalogos_id VARCHAR(1000)
+AS
+
+SET NOCOUNT ON
+	
+	-- Listando catálogos
+	EXEC ges.catalogo_listar @Unidad_negocio_id, @Catalogos_id
+
+	-- Listando los proyectos
+	SELECT menu_id, titulo FROM seg.menu WHERE menu_padre_id IS NULL AND menu_base_id IS NULL AND estado = '1' ORDER BY titulo ASC

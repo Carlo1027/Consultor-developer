@@ -1,0 +1,30 @@
+USE [Inland]
+GO
+/****** Object:  StoredProcedure [seg].[notificacion_leer]    Script Date: 3/12/2018 10:57:50 ******/
+SET ANSI_NULLS ON
+GO
+SET QUOTED_IDENTIFIER ON
+GO
+ALTER PROC [seg].[notificacion_leer] (--@jpoConfig{showLoader : false}
+	@Usuario_id INT,
+	@Notificacion_id INT,
+	@estado INT OUT,
+	@mensaje varchar(max) OUT 
+)
+AS
+
+SET NOCOUNT ON 
+
+	BEGIN TRY
+
+		INSERT INTO seg.notificacion_leido VALUES (@Notificacion_id, @Usuario_id, CURRENT_TIMESTAMP)
+		SET @estado = 1;
+		SET @mensaje = '';
+	
+	END TRY
+	BEGIN CATCH
+
+		SET @estado = 0;
+		SET @mensaje = ERROR_MESSAGE();
+		
+	END CATCH

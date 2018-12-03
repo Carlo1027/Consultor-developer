@@ -1,0 +1,36 @@
+USE [Inland]
+GO
+/****** Object:  StoredProcedure [tco].[usuario_rol_template_asociar]    Script Date: 3/12/2018 10:28:54 ******/
+SET ANSI_NULLS ON
+GO
+SET QUOTED_IDENTIFIER ON
+GO
+ALTER PROC [tco].[usuario_rol_template_asociar] (
+	@Usuario_id INT,
+	@estado INT OUT,
+	@mensaje varchar(max) OUT 
+)
+AS
+
+SET NOCOUNT ON 
+
+	BEGIN TRY
+
+		INSERT INTO seg.usuario_rol (usuario_id, rol_id)
+		VALUES (@Usuario_id, 15) -- Asocia al usuario con el ROL 15 - CLIENTE
+		-- Asociando el envio de correos.
+		--INSERT INTO
+			--seg.usuario_email_plantilla (usuario_id, email_plantilla_id, estado, usuario_registro_id, habilitado) 
+		--VALUES 
+			--(@Usuario_id, 16, '2', @Usuario_id,'0') -- correos asociados, estado '2' no puede cambiarlo
+
+		SET @estado = 1;
+		SET @mensaje = 'Registrado';
+
+	END TRY
+	BEGIN CATCH
+
+		SET @estado = 0;
+		SET @mensaje = ERROR_MESSAGE();
+		
+	END CATCH

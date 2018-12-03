@@ -1,0 +1,54 @@
+USE [Inland]
+GO
+/****** Object:  StoredProcedure [tco].[deposito_listar]    Script Date: 3/12/2018 10:23:02 ******/
+SET ANSI_NULLS ON
+GO
+SET QUOTED_IDENTIFIER ON
+GO
+
+ALTER PROC [tco].[deposito_listar] (
+	@Nombre_deposito VARCHAR(MAX),
+	@FechaDesde DATE,
+	@FechaHasta DATE,
+	@Page INT,
+	@Size INT,
+	@Estado CHAR(1)
+)
+AS
+
+SET NOCOUNT ON
+
+	DECLARE @fechaInicio DATETIME
+	DECLARE @fechaFin DATETIME
+	SET @fechaInicio  = CONVERT(CHAR(8),@FechaDesde,112) + ' 00:00:00'
+	SET @fechaFin = CONVERT(CHAR(8),@FechaHasta,112) + ' 23:59:59'
+
+	SELECT
+		DEP.deposito_id,
+		DEP.estado estado,
+		CASE DEP.estado
+			WHEN 0 THEN 'Inactivo'
+			WHEN 1 THEN 'Activo'
+		END estado_descripcion,
+		DEP.fecha_registro fecha_registro,
+		DEP.nombre,
+		DEP.ciudad_id,
+		UBI.nombre nombre_ciudad,
+		DEP.direccion
+	FROM tco.deposito DEP
+	INNER JOIN tco.ciudad CIU ON CIU.ciudad_id = DEP.ciudad_id
+	INNER JOIN ges.ubigeo UBI ON UBI.ubigeo_id = CIU.ciudad_id
+	WHERE (@FechaDesde IS NULL OR (@FechaHasta IS NULL OR (DEP.fecha_registro between @fechaInicio and @fechaFin))) AND
+		(@Nombre_deposito IS NULL OR (DEP.nombre LIKE @Nombre_deposito)) AND
+		(@Estado IS NULL OR (DEP.estado = @Estado))
+	ORDER BY 1 DESC
+	OFFSET ((@Page - 1)* @Size) ROWS
+	FETCH NEXT @Size ROWS ONLY;
+
+	SELECT COUNT(*)
+	FROM tco.deposito DEP
+	INNER JOIN tco.ciudad CIU ON CIU.ciudad_id = DEP.ciudad_id
+	INNER JOIN ges.ubigeo UBI ON UBI.ubigeo_id = CIU.ciudad_id
+	WHERE (@FechaDesde IS NULL OR (@FechaHasta IS NULL OR (DEP.fecha_registro between @fechaInicio and @fechaFin))) AND
+		(@Nombre_deposito IS NULL OR (DEP.nombre LIKE @Nombre_deposito)) AND
+		(@Estado IS NULL OR (DEP.estado = @Estado))

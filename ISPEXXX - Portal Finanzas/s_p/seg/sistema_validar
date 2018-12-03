@@ -1,0 +1,54 @@
+USE [Inland]
+GO
+/****** Object:  StoredProcedure [seg].[sistema_validar]    Script Date: 3/12/2018 10:59:07 ******/
+SET ANSI_NULLS ON
+GO
+SET QUOTED_IDENTIFIER ON
+GO
+ALTER PROC [seg].[sistema_validar] (--@jpoConfig{showLoader : false}
+	@Usuario_id INT,
+	@Sistema_id INT
+)
+AS
+--@jpoOutput{result : 'system {version : string, nivel : number, deploymentDate : Date}'}
+--@jpoOutputs{result : 'adds {id : number, type : number, icon : string, title : string, subtitle : string, description : string, nivel : string, onlyOne : string, onlyOneAlert : string, dueDate : Date, read : number, sendDate : Date}'}
+SET NOCOUNT ON 
+
+	SELECT TOP 1 version, nivel, fecha_despliegue FROM [Inland].[seg].[version] WHERE sistema_id = @Sistema_id AND estado = '1' ORDER BY version_id DESC
+	
+	IF @Usuario_id IS NOT NULL
+	BEGIN
+
+		SELECT DISTINCT
+			NTF.notificacion_id,
+			2,
+			NTF.icono,
+			NTF.titulo,
+			NTF.subtitulo,
+			NTF.descripcion,
+			NTF.nivel,
+			NTF.unica_vez,
+			NTF.unica_alerta,
+			NTF.fecha_caducidad,
+			CASE -- Si el aviso es permanente (unica_vez = 0) y es solo una única alerta (unica_alerta = 1) validamos si ya ha sido visualizado
+				WHEN NTF.unica_vez = '0' AND NTF.unica_alerta = '1' THEN (SELECT count(NOL.notificacion_id) FROM seg.notificacion_leido NOL WHERE NOL.usuario_id = 1 AND NOL.notificacion_id = NTF.notificacion_id)
+				WHEN NTF.unica_vez = '0' AND (NTF.unica_alerta IS NULL OR NTF.unica_alerta = '0') THEN 0
+				WHEN NTF.unica_vez = '1' THEN 0
+			END AS leido,
+			NTF.fecha_registro
+		FROM seg.usuario_rol USR
+			INNER JOIN seg.notificacion_rol NOR on NOR.rol_id = USR.rol_id
+			INNER JOIN seg.notificacion NTF on NTF.notificacion_id = NOR.notificacion_id
+		WHERE
+			USR.usuario_id = 1 AND
+			NTF.estado = '1' AND
+			(NTF.unica_vez = '0' OR NOT EXISTS (SELECT * FROM seg.notificacion_leido NOL WHERE NOL.usuario_id = 1 AND NOL.notificacion_id = NTF.notificacion_id)) AND -- Rule for user's that was readered if has enable unique view
+			(NTF.fecha_caducidad IS NULL OR (NTF.fecha_caducidad IS NOT NULL AND CURRENT_TIMESTAMP <= NTF.fecha_caducidad)) -- Rule if has due date use if no do not use
+		ORDER BY
+			NTF.fecha_registro DESC
+
+	END
+	ELSE
+	BEGIN
+		SELECT ''
+	END

@@ -1,0 +1,38 @@
+USE [Inland]
+GO
+/****** Object:  StoredProcedure [seg].[menu_eliminar_validar]    Script Date: 3/12/2018 10:57:07 ******/
+SET ANSI_NULLS ON
+GO
+SET QUOTED_IDENTIFIER ON
+GO
+ALTER PROC [seg].[menu_eliminar_validar]
+	@Menu_id INT
+AS
+
+SET NOCOUNT ON 
+
+	-- 1.- Menu con roles
+	SELECT 
+		ROL.nombre
+	FROM
+		seg.rol ROL
+		INNER JOIN seg.rol_menu RME ON RME.rol_id = ROL.rol_id
+	WHERE
+		RME.menu_id = @Menu_id
+
+	-- 2.- Menu con reportes
+	SELECT 
+		REP.nombre
+	FROM
+		ges.reporte REP
+	WHERE
+		REP.menu_id = @Menu_id
+
+	-- 3.- Menu con termino
+	SELECT 
+		CONCAT(UNI.nombre, ' - v', TER.version)
+	FROM
+		ges.termino TER
+		INNER JOIN seg.unidad_negocio UNI ON UNI.unidad_negocio_id = TER.unidad_negocio_id
+	WHERE
+		TER.menu_id = @Menu_id

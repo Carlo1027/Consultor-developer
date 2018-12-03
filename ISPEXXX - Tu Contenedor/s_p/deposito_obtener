@@ -1,0 +1,26 @@
+USE [Inland]
+GO
+/****** Object:  StoredProcedure [tco].[deposito_obtener]    Script Date: 3/12/2018 10:23:13 ******/
+SET ANSI_NULLS ON
+GO
+SET QUOTED_IDENTIFIER ON
+GO
+
+ALTER PROC [tco].[deposito_obtener] (
+	@Deposito_id INT
+)
+AS
+
+SET NOCOUNT ON
+
+	SELECT
+		DEP.deposito_id,
+		DEP.estado estado,
+		DEP.nombre,
+		DEP.ciudad_id ubigeo_departamento_id,
+		DEP.direccion
+	FROM tco.deposito DEP
+	WHERE
+		deposito_id = @Deposito_id
+
+	EXEC tco.deposito_contacto_listar @Deposito_id

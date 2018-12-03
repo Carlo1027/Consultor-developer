@@ -1,0 +1,34 @@
+USE [Inland]
+GO
+/****** Object:  StoredProcedure [prh].[ficha_laboral_familiar_id]    Script Date: 3/12/2018 09:57:42 ******/
+SET ANSI_NULLS ON
+GO
+SET QUOTED_IDENTIFIER ON
+GO
+ALTER PROC [prh].[ficha_laboral_familiar_id]
+	@colaborador_id bigint
+AS
+ 
+SET NOCOUNT ON
+
+BEGIN
+	SELECT 
+	  ficha_laboral_familiar_id
+      ,TB1.ficha_laboral_id
+      ,nombre_completo
+	  ,TB1.documento_identidad
+      ,TB3.descripcion descripcionDocuIdentidad
+      ,TB1.numero_documento_identidad
+      ,TB1.fecha_nacimiento
+      ,TB1.genero
+	  ,TB4.descripcion descripcionGenero
+      ,TB1.parentesco
+	  ,TB5.descripcion descripcionParentesco
+	FROM prh.ficha_laboral_familiar TB1
+	INNER JOIN prh.ficha_laboral TB2 ON TB2.ficha_laboral_id = TB1.ficha_laboral_id
+	INNER JOIN ges.catalogo TB3 ON TB1.documento_identidad = TB3.catalogo_id
+	INNER JOIN ges.catalogo TB4 ON TB1.genero = TB4.catalogo_id
+	INNER JOIN ges.catalogo TB5 ON TB1.parentesco = TB5.catalogo_id
+	WHERE TB2.usuario_id = @colaborador_id
+
+END

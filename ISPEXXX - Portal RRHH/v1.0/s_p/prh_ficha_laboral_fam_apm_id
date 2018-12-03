@@ -1,0 +1,25 @@
+USE [Inland]
+GO
+/****** Object:  StoredProcedure [prh].[ficha_laboral_fam_apm_id]    Script Date: 3/12/2018 09:56:26 ******/
+SET ANSI_NULLS ON
+GO
+SET QUOTED_IDENTIFIER ON
+GO
+ALTER PROC [prh].[ficha_laboral_fam_apm_id]
+	@colaborador_id bigint
+AS
+ 
+SET NOCOUNT ON
+
+BEGIN
+	SELECT 
+	  ficha_laboral_fam_apm_id
+      ,TB1.ficha_laboral_id
+      ,nombre_completo
+	  ,area
+	  ,posicion
+	  ,unique_id
+	FROM prh.ficha_laboral_fam_apm TB1
+	INNER JOIN prh.ficha_laboral TB2 ON TB2.ficha_laboral_id = TB1.ficha_laboral_id
+	WHERE TB2.usuario_id = @colaborador_id
+END

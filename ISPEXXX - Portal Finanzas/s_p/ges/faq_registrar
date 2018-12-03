@@ -1,0 +1,39 @@
+USE [Inland]
+GO
+/****** Object:  StoredProcedure [ges].[faq_registrar]    Script Date: 3/12/2018 10:51:54 ******/
+SET ANSI_NULLS ON
+GO
+SET QUOTED_IDENTIFIER ON
+GO
+ALTER PROC [ges].[faq_registrar]
+	@Menu_id INT,
+	@Unidad_negocio_id INT,
+	@Version VARCHAR(100),
+	@Descripcion TEXT,
+	@EstadoActivo CHAR(1),
+	@Usuario_id INT,
+	@estado INT OUT,
+	@mensaje varchar(max) OUT 
+AS
+
+SET NOCOUNT ON
+
+BEGIN TRY
+
+	INSERT INTO
+		ges.faq (menu_id, unidad_negocio_id, version, descripcion, estado, usuario_registro_id)
+	VALUES
+		(@Menu_id, @Unidad_negocio_id, @Version, @Descripcion, @EstadoActivo, @Usuario_id)
+	
+	SET @estado = 1
+	SET @mensaje = 'FAQ registrado correctamente'
+
+END TRY
+BEGIN CATCH
+       
+    DECLARE @log_id INT, @el INT = ERROR_LINE(), @en INT = ERROR_NUMBER(), @em NVARCHAR(4000) = ERROR_MESSAGE()
+    EXEC seg.log_registrar @Usuario_id, 'tco.faq_registrar', @el, @en, @em, @log_id OUTPUT
+    SET @mensaje = CAST(@log_id AS VARCHAR)+' | '+ERROR_MESSAGE();
+    SET @estado = 0;
+
+END CATCH

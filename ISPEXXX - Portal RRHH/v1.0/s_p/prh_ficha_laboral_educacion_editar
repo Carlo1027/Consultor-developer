@@ -1,0 +1,73 @@
+USE [Inland]
+GO
+/****** Object:  StoredProcedure [prh].[ficha_laboral_educacion_editar]    Script Date: 3/12/2018 09:53:56 ******/
+SET ANSI_NULLS ON
+GO
+SET QUOTED_IDENTIFIER ON
+GO
+ALTER PROC [prh].[ficha_laboral_educacion_editar] (
+	@Usuario_id INT,
+	@Ficha_laboral_id INT,
+    @DetalleEducacion xml,
+	@estado INT OUT,
+	@mensaje varchar(max) OUT 
+)
+AS
+SET NOCOUNT ON 
+
+BEGIN TRY
+	DECLARE @SettingStatus INT
+	SELECT @SettingStatus=estado
+	FROM prh.ficha_settings
+	WHERE setting_id = 4
+
+	IF (@SettingStatus=1)
+	BEGIN
+		-- Detalle Educacion
+		DELETE ficha_laboral_educacion where ficha_laboral_id=@Ficha_laboral_id
+	
+		INSERT INTO ficha_laboral_educacion (ficha_laboral_id,educacion_nivel_id,centro_estudios,completa,carrera,fecha_inicio,fecha_fin,grado_obtenido,usuario_registro_id)
+		SELECT @Ficha_laboral_id,
+			C.value('EducacionId[1]','int') AS educacion_id,
+			CASE 
+			  WHEN C.value('CentroEstudios[1]','varchar(100)') != ''  THEN C.value('CentroEstudios[1]','varchar(100)')
+			  ELSE null
+			END AS centro_estudios,
+			CASE 
+			  WHEN C.value('Completa[1]','int') >0 THEN C.value('Completa[1]','int')
+			  ELSE null
+			END AS completa,
+			CASE
+			  WHEN C.value('Carrera[1]','varchar(100)') != '' THEN C.value('Carrera[1]','varchar(100)')
+			  ELSE null
+			END AS carrera,
+			CASE
+			  WHEN C.value('FechaInicio[1]','Date') != '' THEN C.value('FechaInicio[1]','Date')
+			  ELSE null
+			END AS fecha_inicio,
+			CASE
+			  WHEN C.value('FechaFin[1]','Date') != '' THEN C.value('FechaFin[1]','Date')
+			  ELSE null
+			END AS fecha_fin,
+			CASE
+			  WHEN C.value('GradoObtenido[1]','int') > 0 THEN C.value('GradoObtenido[1]','int')
+			  ELSE null
+			END AS grado_obtenido,
+			@Usuario_id AS usuario_registro_id
+		FROM @DetalleEducacion.nodes('/Educacion') AS T(C)
+
+		SET @estado = 1
+		SET @mensaje = 'Información de educación actualizada correctamente'
+	END
+	ELSE
+	BEGIN
+		SET @estado = 0
+		SET @mensaje = 'No está permitido editar la información de educación'
+	END	
+END TRY
+BEGIN CATCH
+
+	SET @estado = 0;
+	SET @mensaje = ERROR_MESSAGE();
+		
+END CATCH

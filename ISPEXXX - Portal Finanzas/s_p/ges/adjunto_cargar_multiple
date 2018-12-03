@@ -1,0 +1,95 @@
+USE [Inland]
+GO
+/****** Object:  StoredProcedure [ges].[adjunto_cargar_multiple]    Script Date: 3/12/2018 10:46:25 ******/
+SET ANSI_NULLS ON
+GO
+SET QUOTED_IDENTIFIER ON
+GO
+ALTER PROC [ges].[adjunto_cargar_multiple] (--@jpoConfig{disableView : true, autocommit : false}
+	@Usuario_id INT,
+	@Archivos VARCHAR(MAX),
+	@Id VARCHAR(100),
+	@Respuesta VARCHAR(8000) OUT,
+	@estado INT OUT,
+	@mensaje varchar(4000) OUT 
+)
+AS
+
+SET NOCOUNT ON 
+
+	/*  SET @Archivos = '
+		<Archivos>
+			<Archivo>
+				<nombre>A</nombre>
+				<formato>jpg</formato>
+				<peso>2312</peso>
+				<ubicacion>Green</ubicacion>
+			</Archivo>
+			<Archivo>
+				<nombre>B</nombre>
+				<formato>jpg</formato>
+				<peso>1312</peso>
+				<ubicacion>Green</ubicacion>
+			</Archivo>
+		</Archivos>';
+	*/
+
+	BEGIN TRY
+
+		DECLARE @P_Arcivos XML = CAST(@Archivos AS XML)
+
+		-- 1.0 - Validando si recibe un ID en vez del usuario_id
+		IF @Id IS NOT NULL
+		BEGIN
+			SELECT @Usuario_id = USU.usuario_id FROM seg.usuario USU WHERE USU.id = @Id
+		END
+
+		-- 2.0 - Iterando la lista de adjuntos
+
+		DECLARE @P_respuesta VARCHAR(8000) = '<Archivos>';
+
+		DECLARE @P_total int = @P_Arcivos.value('count(/Archivos/*)', 'int')
+
+		DECLARE @P_indice int = 0
+
+		WHILE @P_indice < @P_total
+		BEGIN
+
+			-- 3.0 - Insertando y mapeando los IDs
+			INSERT INTO ges.adjunto (nombre, formato, peso, ubicacion, usuario_registro_id)
+			SELECT 
+				C.value('nombre[1]','VARCHAR(150)') AS nombre,
+				C.value('formato[1]','VARCHAR(5)') AS formato,
+				C.value('peso[1]','int') AS peso,
+				C.value('ubicacion[1]','VARCHAR(250)') AS ubicacion,
+				@Usuario_id AS usuario_registro_id
+			FROM @P_Arcivos.nodes('/Archivos/Archivo[sql:variable("@P_indice")+1]') AS T(C)
+
+			DECLARE @P_adjunto_id INT = @@IDENTITY
+			DECLARE @P_nombre VARCHAR(100)
+			SELECT 
+				@P_nombre = C.value('nombre[1]','VARCHAR(150)')
+			FROM @P_Arcivos.nodes('/Archivos/Archivo[sql:variable("@P_indice")+1]') AS T(C)
+
+			--DECLARE @P_adjunto_id INT = 1
+
+			SET @P_respuesta += '<Archivo><archivo_id>'+CAST(@P_adjunto_id AS VARCHAR)+'</archivo_id><nombre>'+@P_nombre+'</nombre></Archivo>';
+
+			SET @P_indice += 1
+		END
+
+		SET @P_respuesta += '</Archivos>';
+		
+		SET @Respuesta = @P_respuesta;
+		SET @estado = 1
+		SET @mensaje = 'Archivo adjuntado correctamente'
+
+	END TRY
+	BEGIN CATCH
+
+		DECLARE @log_id INT, @el INT = ERROR_LINE(), @en INT = ERROR_NUMBER(), @em NVARCHAR(4000) = ERROR_MESSAGE()
+		EXEC seg.log_registrar @Usuario_id, 'ges.adjunto_cargar_multiple', @el, @en, @em, @log_id OUTPUT
+		SET @mensaje = CAST(@log_id AS VARCHAR)+' | '+ERROR_MESSAGE();
+		SET @estado = 0;
+		
+	END CATCH

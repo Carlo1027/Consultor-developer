@@ -1,0 +1,47 @@
+USE [Inland]
+GO
+/****** Object:  StoredProcedure [tco].[linea_listar]    Script Date: 3/12/2018 10:25:45 ******/
+SET ANSI_NULLS ON
+GO
+SET QUOTED_IDENTIFIER ON
+GO
+
+ALTER PROC [tco].[linea_listar] (
+	@Nombre VARCHAR(MAX),
+	@FechaDesde DATE,
+	@FechaHasta DATE,
+	@Page INT,
+	@Size INT,
+	@Estado CHAR(1)
+)
+AS
+
+SET NOCOUNT ON
+
+	DECLARE @fechaInicio DATETIME
+	DECLARE @fechaFin DATETIME
+	SET @fechaInicio  = CONVERT(CHAR(8),@FechaDesde,112) + ' 00:00:00'
+	SET @fechaFin = CONVERT(CHAR(8),@FechaHasta,112) + ' 23:59:59'
+
+	SELECT
+		A.linea_id linea_id,
+		A.nombre nombre,
+		A.estado estado,
+		CASE A.estado
+			WHEN 0 THEN 'Inactivo'
+			WHEN 1 THEN 'Activo'
+		END estado_descripcion,
+		A.fecha_registro fecha_registro
+	FROM tco.linea A
+	WHERE (@FechaDesde IS NULL OR (@FechaHasta IS NULL OR (A.fecha_registro between @fechaInicio and @fechaFin))) AND
+		(@Nombre IS NULL OR (A.nombre = @Nombre)) AND
+		(@Estado IS NULL OR (A.estado = @Estado))
+	ORDER BY 1 DESC
+	OFFSET ((@Page - 1)* @Size) ROWS
+	FETCH NEXT @Size ROWS ONLY;
+
+	SELECT COUNT(*)
+	FROM tco.linea A
+	WHERE (@FechaDesde IS NULL OR (@FechaHasta IS NULL OR (A.fecha_registro between @fechaInicio and @fechaFin))) AND
+		(@Nombre IS NULL OR (A.nombre = @Nombre)) AND
+		(@Estado IS NULL OR (A.estado = @Estado))

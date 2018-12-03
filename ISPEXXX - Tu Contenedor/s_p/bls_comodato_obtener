@@ -1,0 +1,53 @@
+USE [Inland]
+GO
+/****** Object:  StoredProcedure [tco].[bls_comodato_obtener]    Script Date: 3/12/2018 10:17:34 ******/
+SET ANSI_NULLS ON
+GO
+SET QUOTED_IDENTIFIER ON
+GO
+
+ALTER PROC [tco].[bls_comodato_obtener] (
+	@Liquidacion_id INT,
+	@Contenedor_id INT,
+	@Tipo_operacion INT
+)
+AS
+
+SET NOCOUNT ON
+
+	SELECT
+		K.nombre 'Linea Naviera',
+		J.razon_social 'Consignatario de la Carga',
+		J.documento NIT,
+		
+		C.contenedor, 
+		D.descripcion Tipo, 
+		E.descripcion Tamano, 
+		C.altura, 
+		F.numero_documento BL,
+		I.nombre 'Puerto Arribo', 
+		F.puerto_origen 'Puerto Origen',
+		C.commodity_customer,
+		C.commodity_name,
+		F.nave+' / '+F.viaje 'Nave / Viaje',
+		G.descripcion Trayecto,
+		H.nombre 'Patio Devolucion',
+		CC.comodato_id,
+		DD.fecha_registro
+	FROM tco.liquidacion A
+	INNER JOIN tco.liquidacion_detalle B ON B.liquidacion_id = A.liquidacion_id
+	INNER JOIN tco.comodato CC ON CC.liquidacion_detalle_id = B.liquidacion_detalle_id
+	INNER JOIN tco.factura DD ON DD.liquidacion_id = A.liquidacion_id
+	INNER JOIN tco.doc_transporte_detalle C ON C.doc_transporte_detalle_id = B.doc_transporte_detalle_id
+	INNER JOIN ges.catalogo D ON D.catalogo_id = C.contenedor_tipo
+	INNER JOIN ges.catalogo E ON E.catalogo_id = C.contenedor_tamano
+	INNER JOIN tco.doc_transporte F ON F.doc_transporte_id = C.doc_transporte_id
+	INNER JOIN ges.catalogo G ON G.catalogo_id = F.tipo_operacion
+	INNER JOIN tco.deposito H ON H.deposito_id = B.deposito_id
+	INNER JOIN ges.ubigeo I ON I.ubigeo_id = H.ciudad_id
+
+	INNER JOIN ges.empresa J ON J.empresa_id = F.empresa_id
+	INNER JOIN tco.linea K ON K.linea_id = F.linea_id
+
+	WHERE A.liquidacion_id = @Liquidacion_id AND B.doc_transporte_detalle_id = @Contenedor_id AND F.tipo_operacion = @Tipo_operacion
+	

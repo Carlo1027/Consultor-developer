@@ -1,0 +1,53 @@
+USE [Inland]
+GO
+/****** Object:  StoredProcedure [tco].[deposito_registrar]    Script Date: 3/12/2018 10:23:23 ******/
+SET ANSI_NULLS ON
+GO
+SET QUOTED_IDENTIFIER ON
+GO
+
+ALTER PROC [tco].[deposito_registrar] (
+	@Nombre VARCHAR(MAX),
+	@Ciudad_id INT,
+	@Direccion VARCHAR(MAX),
+	@Activo CHAR(1),
+	@Contactos XML,
+	@Usuario_id INT,
+	@estado INT OUT,
+	@mensaje VARCHAR(MAX) OUT
+)
+AS
+SET NOCOUNT ON
+BEGIN TRY
+
+	DECLARE @Deposito_id INT
+
+	-- 2.- Registrando el deposito
+	INSERT INTO 
+		tco.deposito([ciudad_id],[nombre],[direccion],[estado],[usuario_registro_id])
+	VALUES
+		(@Ciudad_id, @Nombre, @Direccion, @Activo, @Usuario_id)
+	SET @Deposito_id = @@IDENTITY
+
+	-- 3. Registrando los contactos
+	IF(@Contactos IS NOT NULL)
+	BEGIN		
+		INSERT INTO [tco].[deposito_contacto] ([deposito_id], [nombre], [correo])
+		SELECT @Deposito_id,
+			C.value('nombre[1]','VARCHAR(200)') AS nombre,
+			C.value('correo[1]','VARCHAR(200)') AS correo
+		FROM @Contactos.nodes('/Contacto') AS T(C)
+	END
+
+	SET @estado = 1
+	SET @mensaje = 'Se registró el depósito correctamente'
+		
+END TRY
+BEGIN CATCH
+	
+	DECLARE @log_id INT, @el INT = ERROR_LINE(), @en INT = ERROR_NUMBER(), @em NVARCHAR(4000) = ERROR_MESSAGE()
+	EXEC seg.log_registrar @Usuario_id, 'tco.deposito_registrar', @el, @en, @em, @log_id OUTPUT
+	SET @mensaje = CAST(@log_id AS VARCHAR)+' | '+ERROR_MESSAGE();
+	SET @estado = 0;
+
+END CATCH

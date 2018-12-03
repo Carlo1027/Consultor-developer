@@ -1,0 +1,46 @@
+USE [Inland]
+GO
+/****** Object:  StoredProcedure [seg].[usuario_foto_adjuntar]    Script Date: 3/12/2018 11:00:42 ******/
+SET ANSI_NULLS ON
+GO
+SET QUOTED_IDENTIFIER ON
+GO
+ALTER PROC [seg].[usuario_foto_adjuntar] (--@jpoConfig{oauth2Enable : true, enableFiles : true} 
+	@Usuario_id INT,
+	@Archivo_Nombre VARCHAR(MAX),
+	@Archivo_Formato VARCHAR(10),
+	@Archivo_Peso INT,
+	@Archivo_Ubicacion VARCHAR(MAX),
+	@Adjunto_id INT OUT,
+	@estado INT OUT,
+	@mensaje varchar(max) OUT ,
+	@Archivo_base64 varchar(max) OUT 
+)
+AS
+
+SET NOCOUNT ON 
+
+	BEGIN TRY
+
+		INSERT INTO 
+			ges.adjunto (nombre, formato, peso, ubicacion, usuario_registro_id) 
+		VALUES 
+			(@Archivo_Nombre, @Archivo_Formato, @Archivo_Peso, @Archivo_Ubicacion, @Usuario_id)
+		SET @Adjunto_id = @@IDENTITY
+
+		UPDATE seg.usuario SET 
+			adjunto_foto_id = @Adjunto_id, 
+			usuario_modificacion_id = @Usuario_id,
+			fecha_modificacion = CURRENT_TIMESTAMP
+		WHERE usuario_id = @Usuario_id
+
+		SET @estado = 1
+		SET @mensaje = 'Foto subida correctamente'
+
+	END TRY
+	BEGIN CATCH
+
+		SET @estado = 0;
+		SET @mensaje = ERROR_MESSAGE();
+		
+	END CATCH

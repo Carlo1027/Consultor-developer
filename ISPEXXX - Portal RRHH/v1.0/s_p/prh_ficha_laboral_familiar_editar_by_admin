@@ -1,0 +1,95 @@
+USE [Inland]
+GO
+/****** Object:  StoredProcedure [prh].[ficha_laboral_familiar_editar_by_admin]    Script Date: 3/12/2018 09:57:14 ******/
+SET ANSI_NULLS ON
+GO
+SET QUOTED_IDENTIFIER ON
+GO
+ALTER PROC [prh].[ficha_laboral_familiar_editar_by_admin] (
+	@Usuario_id INT,
+	@Ficha_laboral_id INT,
+    @DetalleFamiliar xml,
+	@DetalleFamAPM xml,
+	@DetalleEmergencia xml,
+	@estado INT OUT,
+	@mensaje varchar(max) OUT 
+)
+AS
+SET NOCOUNT ON 
+
+BEGIN TRY
+
+	-- Detalle Familiar
+	DELETE ficha_laboral_familiar where ficha_laboral_id=@Ficha_laboral_id
+
+	IF(@DetalleFamiliar IS NOT NULL)
+	BEGIN		
+		INSERT INTO ficha_laboral_familiar (ficha_laboral_id,nombre_completo,documento_identidad,numero_documento_identidad,fecha_nacimiento,genero,parentesco,usuario_registro_id)
+		SELECT @Ficha_laboral_id,
+			C.value('NombreCompleto[1]','varchar(200)') AS nombre_completo,
+			C.value('DocumentoIdentidad[1]','varchar(50)') AS documento_identidad,
+			C.value('NumeroDocumentoIdentidad[1]','int') AS numero_documento_identidad,
+			C.value('FechaNacimiento[1]','Date') AS fecha_nacimiento,
+			C.value('Genero[1]','int') AS genero,
+			C.value('Parentesco[1]','int') AS parentesco,
+			@Usuario_id AS usuario_registro_id
+		FROM @DetalleFamiliar.nodes('/Familiar') AS T(C)
+	END
+
+
+	-- Detalle Familiar APM
+	DELETE ficha_laboral_fam_apm where ficha_laboral_id=@Ficha_laboral_id
+
+	IF(@DetalleFamAPM IS NOT NULL)
+	BEGIN		
+		INSERT INTO ficha_laboral_fam_apm (ficha_laboral_id,nombre_completo,area,posicion,unique_id,usuario_registro_id)
+		SELECT @Ficha_laboral_id,
+			C.value('NombreCompleto[1]','varchar(200)') AS nombre_completo,
+			CASE
+				WHEN C.value('Area[1]','varchar(100)') != '' THEN C.value('Area[1]','varchar(100)')
+				ELSE null
+			END AS area,
+			CASE
+				WHEN C.value('Posicion[1]','varchar(100)') != '' THEN C.value('Posicion[1]','varchar(100)')
+				ELSE null
+			END AS posicion,
+			CASE
+				WHEN C.value('UniqueID[1]','varchar(30)') != '' THEN C.value('UniqueID[1]','varchar(30)')
+				ELSE null
+			END AS unique_id,
+			@Usuario_id AS usuario_registro_id
+		FROM @DetalleFamAPM.nodes('/FamiliarAPM') AS T(C)
+	END
+
+	-- Detalle Familiar Emergencia
+	IF(@DetalleEmergencia IS NOT NULL)
+	BEGIN
+		DELETE ficha_laboral_emergencia where ficha_laboral_id=@Ficha_laboral_id
+		
+		INSERT INTO ficha_laboral_emergencia (ficha_laboral_id,nombre_completo,parentesco,telefono,correo,direccion,usuario_registro_id)
+		SELECT @Ficha_laboral_id,
+			C.value('NombreCompleto[1]','varchar(200)') AS nombre_completo,
+			C.value('Parentesco[1]','int') AS parentesco,
+			C.value('Telefono[1]','varchar(30)') AS telefono,
+			CASE
+				WHEN C.value('Correo[1]','varchar(100)') != '' THEN C.value('Correo[1]','varchar(100)')
+				ELSE null
+			END AS correo,
+			CASE
+				WHEN C.value('Direccion[1]','varchar(100)') != '' THEN C.value('Direccion[1]','varchar(100)')
+				ELSE null
+			END AS direccion,
+			@Usuario_id AS usuario_registro_id
+		FROM @DetalleEmergencia.nodes('/FamiliarEmergencia') AS T(C)
+	END
+
+	SET @estado = 1
+	SET @mensaje = 'Información familiar actualizada correctamente'
+			
+END TRY
+BEGIN CATCH
+
+	SET @estado = 0;
+	SET @mensaje = ERROR_MESSAGE();
+		
+END CATCH

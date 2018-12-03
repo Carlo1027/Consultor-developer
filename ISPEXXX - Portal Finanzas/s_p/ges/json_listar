@@ -1,0 +1,58 @@
+USE [Inland]
+GO
+/****** Object:  StoredProcedure [ges].[json_listar]    Script Date: 3/12/2018 10:52:17 ******/
+SET ANSI_NULLS ON
+GO
+SET QUOTED_IDENTIFIER ON
+GO
+ALTER PROC [ges].[json_listar] (
+	@JSON NVARCHAR(MAX)
+)
+AS
+
+SET NOCOUNT ON 
+
+---DECLARE @JSON VARCHAR(MAX) = '[{"emailTemplateId":4,"state":"1","WHY":"asd","asds":"xxx"},{"emailTemplateId":5,"state":"0"},{"emailTemplateId":44,"state":"12"}]'
+
+DECLARE @TLIST TABLE(
+	parent_ID INT,
+	NAME VARCHAR(MAX),
+	StringValue VARCHAR(MAX)
+)
+
+INSERT INTO @TLIST
+SELECT parent_ID, NAME, StringValue FROM dbo.fn_parsear_json(@JSON) WHERE Object_ID IS NULL
+
+IF (SELECT COUNT(*) FROM @TLIST) > 0
+BEGIN
+
+	DECLARE @COLUMNS TABLE(
+		ID INT IDENTITY,
+		StringValue NVARCHAR(2000)
+	)
+		
+	INSERT INTO @COLUMNS (StringValue)
+	SELECT NAME FROM @TLIST WHERE parent_ID = 1
+
+	DECLARE @TOTAL INT
+	DECLARE @ID INT = 1
+
+	DECLARE @MAXES NVARCHAR(MAX) = ''
+
+	SELECT @TOTAL = COUNT(*) FROM @COLUMNS
+
+	WHILE @ID <= @TOTAL
+	BEGIN
+		SELECT @MAXES = CONCAT(@MAXES, ',', 'max(case when JSO.NAME = '''+StringValue+''' then JSO.StringValue end) '+StringValue) FROM @COLUMNS WHERE ID = @ID
+		SET @ID = @ID + 1
+	END
+
+	DECLARE @SQL NVARCHAR(max)
+	SET @SQL = 'SELECT
+		JSO.parent_ID '+@MAXES+' 
+		FROM (SELECT parent_ID, NAME, StringValue FROM dbo.fn_parsear_json(@JSON) WHERE Object_ID IS NULL) AS JSO
+		GROUP BY
+		JSO.parent_ID'
+	EXEC sp_executesql @SQL, N'@JSON NVARCHAR(MAX)', @JSON
+
+END

@@ -1,0 +1,35 @@
+USE [Inland]
+GO
+/****** Object:  StoredProcedure [seg].[usuario_registrar_citas]    Script Date: 3/12/2018 11:01:40 ******/
+SET ANSI_NULLS ON
+GO
+SET QUOTED_IDENTIFIER ON
+GO
+ALTER PROC [seg].[usuario_registrar_citas] (
+	@Usuario_id INT,
+	@estado INT OUT,
+	@mensaje varchar(max) OUT 
+)
+AS
+
+SET NOCOUNT ON 
+
+	BEGIN TRY
+
+		INSERT INTO seg.usuario_rol VALUES (@Usuario_id, 3) -- Asocia al usuario con el ROL 3 - Transportista
+		-- Asociando el envio de correos.
+		INSERT INTO 
+			seg.usuario_email_plantilla (usuario_id, email_plantilla_id, estado, usuario_registro_id) 
+		VALUES 
+			(@Usuario_id, 5, '1', @Usuario_id), (@Usuario_id, 6, '1', @Usuario_id) -- ROL 3 Tiene 2 correos Citas aprobadas y citas rechazadas
+
+		SET @estado = 1;
+		SET @mensaje = 'Registrado';
+
+	END TRY
+	BEGIN CATCH
+
+		SET @estado = 0;
+		SET @mensaje = ERROR_MESSAGE();
+		
+	END CATCH

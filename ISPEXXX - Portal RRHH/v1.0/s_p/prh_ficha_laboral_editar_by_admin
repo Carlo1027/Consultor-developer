@@ -1,0 +1,98 @@
+USE [Inland]
+GO
+/****** Object:  StoredProcedure [prh].[ficha_laboral_editar_by_admin]    Script Date: 3/12/2018 09:53:32 ******/
+SET ANSI_NULLS ON
+GO
+SET QUOTED_IDENTIFIER ON
+GO
+ALTER PROC [prh].[ficha_laboral_editar_by_admin] (
+	@Usuario_id INT,
+	@Ficha_laboral_id INT,
+    
+    @nombres VARCHAR(MAX),
+    @apellido_paterno VARCHAR(MAX),
+    @apellido_materno VARCHAR(MAX),
+    @genero INT,
+    @fecha_nacimiento Date,
+    @documento_identidad INT,
+    @numero_documento_identidad VARCHAR(MAX),
+    @estado_civil INT,
+    @telefono_domicilio VARCHAR(MAX),
+    @telefono_celular VARCHAR(MAX),
+    @nacimiento_distrito VARCHAR(MAX),
+    @nacimiento_provincia VARCHAR(MAX),
+    @nacimiento_departamento VARCHAR(MAX),
+    @nacimiento_pais VARCHAR(MAX),
+    @brevete_categoria VARCHAR(MAX),
+    @brevete_fecha_expiracion Date,
+    @brevete_numero VARCHAR(MAX),
+    @correo VARCHAR(MAX),
+    @domicilio_direccion VARCHAR(MAX),
+    @domicilio_distrito VARCHAR(MAX),
+    @domicilio_provincia VARCHAR(MAX),
+    @domicilio_departamento VARCHAR(MAX),
+    @domicilio_pais VARCHAR(MAX),
+    @domicilio_referencia VARCHAR(MAX),
+
+	@estado INT OUT,
+	@mensaje varchar(max) OUT 
+)
+AS
+
+SET NOCOUNT ON 
+
+	BEGIN TRY
+
+		DECLARE @id INT
+
+		SELECT @id = usuario_id
+		FROM prh.ficha_laboral
+		WHERE ficha_laboral_id = @Ficha_laboral_id
+
+		UPDATE [Inland].[prh].[ficha_laboral]
+		SET
+			genero=@genero,
+			fecha_nacimiento=@fecha_nacimiento,
+			documento_identidad=@documento_identidad,
+			numero_documento_identidad=@numero_documento_identidad,
+			estado_civil=@estado_civil,
+			telefono_domicilio=@telefono_domicilio,
+			telefono_celular=@telefono_celular,
+			nacimiento_distrito=@nacimiento_distrito,
+			nacimiento_provincia=@nacimiento_provincia,
+			nacimiento_departamento=@nacimiento_departamento,
+			nacimiento_pais=@nacimiento_pais,
+			brevete_categoria=@brevete_categoria,
+			brevete_fecha_expiracion=@brevete_fecha_expiracion,
+			brevete_numero=@brevete_numero,
+			domicilio_direccion=@domicilio_direccion,
+			domicilio_distrito=@domicilio_distrito,
+			domicilio_provincia=@domicilio_provincia,
+			domicilio_departamento=@domicilio_departamento,
+			domicilio_pais=@domicilio_pais,
+			domicilio_referencia= @domicilio_referencia,
+    		fecha_modificacion = CURRENT_TIMESTAMP,
+    		usuario_modificacion_id = @Usuario_id
+		WHERE
+			ficha_laboral_id = @Ficha_laboral_id
+
+		UPDATE [seg].[usuario]
+		SET
+			nombres=@nombres,
+			apellido_paterno=@apellido_paterno,
+			apellido_materno=@apellido_materno,
+    		fecha_modificacion = CURRENT_TIMESTAMP,
+    		usuario_modificacion_id = @Usuario_id
+		WHERE
+			usuario_id = @id
+
+		SET @estado = 1
+		SET @mensaje = 'Información personal actualizada correctamente'
+			
+	END TRY
+	BEGIN CATCH
+
+		SET @estado = 0;
+		SET @mensaje = ERROR_MESSAGE();
+		
+	END CATCH

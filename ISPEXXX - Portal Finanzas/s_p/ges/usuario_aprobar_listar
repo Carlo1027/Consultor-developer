@@ -1,0 +1,48 @@
+USE [Inland]
+GO
+/****** Object:  StoredProcedure [ges].[usuario_aprobar_listar]    Script Date: 3/12/2018 10:54:01 ******/
+SET ANSI_NULLS ON
+GO
+SET QUOTED_IDENTIFIER ON
+GO
+
+ALTER proc [ges].[usuario_aprobar_listar] (
+	@ruc varchar(20),
+	@FechaDesde date,
+	@FechaHasta date,
+	@Page INT,
+	@Size INT
+)
+AS
+--@jpoOutputs{result : 'users {id : number, nombreProveedor : string, correo : string, estado :number, fechaRegistro : Date, ruc : string, razonSocial : string}'}
+--@jpoOutput{result : 'response {total : number}'}
+SET NOCOUNT ON 
+
+	DECLARE @fechaInicio DATETIME
+	DECLARE @fechaFin DATETIME
+	SET @fechaInicio  = CONVERT(CHAR(8),@FechaDesde,112) + ' 00:00:00'
+	SET @fechaFin = CONVERT(CHAR(8),@FechaHasta,112) + ' 23:59:59'
+
+	SELECT
+		USU.usuario_id id,
+		CONCAT(USU.nombres, ' ', USU.apellido_paterno, ' ', USU.apellido_materno) proveedor,
+		USU.correo,
+		USU.estado estado,
+		USU.fecha_registro,
+		EMP.documento ruc,
+		EMP.razon_social
+	FROM seg.usuario USU
+	INNER JOIN ges.empresa EMP ON EMP.empresa_id = USU.empresa_id 
+	WHERE USU.estado = '4' AND
+	(@ruc IS NULL OR EMP.documento LIKE '%'+@ruc+'%') AND
+	(@FechaDesde IS NULL OR (@FechaHasta IS NULL OR (USU.fecha_registro between @fechaInicio and @fechaFin)))
+	ORDER BY 1 DESC
+	OFFSET ((@Page - 1)* @Size) ROWS
+	FETCH NEXT @Size ROWS ONLY;
+
+	SELECT COUNT(*)
+	FROM seg.usuario USU
+	INNER JOIN ges.empresa EMP ON EMP.empresa_id = USU.empresa_id 
+	WHERE USU.estado = '4' AND
+	(@ruc IS NULL OR EMP.documento LIKE '%'+@ruc+'%') AND
+	(@FechaDesde IS NULL OR (@FechaHasta IS NULL OR (USU.fecha_registro between @fechaInicio and @fechaFin)))

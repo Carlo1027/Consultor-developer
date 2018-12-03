@@ -1,0 +1,70 @@
+USE [Inland]
+GO
+/****** Object:  StoredProcedure [seg].[usuario_confirmar]    Script Date: 3/12/2018 11:00:06 ******/
+SET ANSI_NULLS ON
+GO
+SET QUOTED_IDENTIFIER ON
+GO
+ALTER PROC [seg].[usuario_confirmar] (
+	@Correo VARCHAR(100),
+	@Clave VARCHAR(100),
+	@estado INT OUT,
+	@mensaje varchar(max) OUT 
+)
+AS
+
+SET NOCOUNT ON 
+
+	BEGIN TRY
+
+		DECLARE @USUARIO_ID INT
+		DECLARE @USU_ESTADO CHAR(1)
+
+		-- 1. Obteniendo el id de usuario y el estado
+		SELECT 
+			@USUARIO_ID = usuario_id,
+			@USU_ESTADO = estado
+		FROM
+			seg.usuario
+		WHERE
+			correo = @Correo AND
+			clave = @Clave
+
+		-- 2. Validando si existe el usuario
+		IF @USUARIO_ID IS NOT NULL
+		BEGIN
+			
+			-- 3. Validando si ya se ha confirmado el usuario
+			IF @USU_ESTADO = '2'
+			BEGIN
+
+				UPDATE seg.usuario SET estado = '1' WHERE usuario_id = @USUARIO_ID
+				
+				SET @estado = 1;
+				SET @mensaje = 'Usuario confirmado corréctamente';
+
+			END
+			ELSE
+			BEGIN
+
+				SET @estado = 2;
+				SET @mensaje = 'El usuario ya ha sido confirmado';
+
+			END
+			
+		END
+		ELSE
+		BEGIN
+
+			SET @estado = 3;
+			SET @mensaje = 'El usuario no existe';
+
+		END
+			
+	END TRY
+	BEGIN CATCH
+
+		SET @estado = 0;
+		SET @mensaje = ERROR_MESSAGE();
+		
+	END CATCH

@@ -1,0 +1,42 @@
+USE [Inland]
+GO
+/****** Object:  StoredProcedure [tco].[tarifa_editar]    Script Date: 3/12/2018 10:27:29 ******/
+SET ANSI_NULLS ON
+GO
+SET QUOTED_IDENTIFIER ON
+GO
+
+ALTER PROC [tco].[tarifa_editar] (
+	@Tarifa_id INT,
+	@Servicio_id INT,
+	@Linea_id INT,
+	@Tipo_operacion INT,
+	@Valor DECIMAL,
+	@IVA DECIMAL,
+	@Total DECIMAL,
+	@EstadoTarifa CHAR(1),
+	@Usuario_id INT,
+	@estado INT OUT,
+	@mensaje varchar(max) OUT 
+)
+AS
+SET NOCOUNT ON
+BEGIN TRY
+
+	UPDATE 
+		tco.tarifa SET servicio_id = @Servicio_id, linea_id = @Linea_id, tipo_operacion = @Tipo_operacion, valor = @Valor, iva = @IVA, total = @Total, estado = @EstadoTarifa, usuario_modificacion_id = @Usuario_id, fecha_modificacion = CURRENT_TIMESTAMP
+	WHERE
+		tarifa_id = @Tarifa_id
+
+	SET @estado = 1
+	SET @mensaje = 'Se editó la tarifa correctamente'
+		
+END TRY
+BEGIN CATCH
+	
+	DECLARE @log_id INT, @el INT = ERROR_LINE(), @en INT = ERROR_NUMBER(), @em NVARCHAR(4000) = ERROR_MESSAGE()
+	EXEC seg.log_registrar @Usuario_id, 'tco.tarifa_editar', @el, @en, @em, @log_id OUTPUT
+	SET @mensaje = CAST(@log_id AS VARCHAR)+' | '+ERROR_MESSAGE();
+	SET @estado = 0;
+
+END CATCH
