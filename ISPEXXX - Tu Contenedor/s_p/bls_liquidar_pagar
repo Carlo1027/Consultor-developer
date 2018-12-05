@@ -1,6 +1,6 @@
 USE [Inland]
 GO
-/****** Object:  StoredProcedure [tco].[bls_liquidar_pagar]    Script Date: 3/12/2018 10:19:57 ******/
+/****** Object:  StoredProcedure [tco].[bls_liquidar_pagar]    Script Date: 5/12/2018 10:17:51 ******/
 SET ANSI_NULLS ON
 GO
 SET QUOTED_IDENTIFIER ON
@@ -9,6 +9,9 @@ GO
 ALTER PROC [tco].[bls_liquidar_pagar] (
 	@Liquidacion_id INT,
 	@Usuario_id INT,
+	@Detalle_bl xml,
+	@Detalle_factura xml,
+	@Detalle_pago xml,
 	@estado INT OUT,
 	@mensaje varchar(max) OUT
 )
@@ -18,12 +21,149 @@ SET NOCOUNT ON
 	
 BEGIN TRY
 
+	-- 1. Actualizando liquidación a pagada
 	UPDATE tco.liquidacion
 	SET 
 		estado = '2',
+		fecha_registro = SYSDATETIME(),
 		usuario_modificacion_id = @Usuario_id,
 		fecha_modificacion=SYSDATETIME()
 	WHERE liquidacion_id = @Liquidacion_id
+
+	DELETE FROM tco.liquidacion_detalle WHERE liquidacion_id = @Liquidacion_id
+
+	-- 2. Registrando datos de factura
+	INSERT INTO 
+		tco.factura (liquidacion_id, subtotal, ret_iva, ret_ica, ret_fuente, total_pagado, unidades, estado, usuario_registro_id)
+	SELECT @Liquidacion_id,
+		C.value('subtotal[1]','int') AS subtotal,
+		C.value('iva[1]','int') AS iva,
+		C.value('ica[1]','int') AS ica,
+		C.value('fuente[1]','int') AS fuente,
+		C.value('total[1]','int') AS total,
+		C.value('unidades[1]','int') AS unidades,
+		'0',
+		@Usuario_id
+	FROM @Detalle_factura.nodes('/Factura') AS T(C)
+	DECLARE @Factura_id INT = @@IDENTITY
+
+	-- 2. Registrando datos de detalle de factura
+	INSERT INTO 
+		tco.factura_detalle (factura_id, servicio_id, monto)
+	SELECT @Factura_id,
+		C.value('servicio[1]','int') AS servicio_id,
+		C.value('total[1]','int') AS monto
+	FROM @Detalle_pago.nodes('/DetallePago') AS T(C)
+
+	DECLARE @Fecha_actual Date = GETDATE()
+
+	DECLARE @P_total INT = @Detalle_bl.value('count(/*)', 'int')
+
+	DECLARE @P_indice INT = 0
+
+	DECLARE @Liquidacion_detalle_id INT
+
+	DECLARE @Temp TABLE(
+		condicion_id INT,
+		contenedor_tipo INT,
+		contenedor_tipo_descripcion VARCHAR(MAX),
+		contenedor_tamano INT,
+		contenedor_tamano_descripcion VARCHAR(MAX),
+		indicador_ilimitado INT,
+		cupo INT,
+		indicador_dropoff INT,
+		dropoff INT,
+		tipo_moneda INT,
+		tipo_moneda_descripcion VARCHAR(MAX),
+		Usados_por_mes INT
+	)
+
+	DECLARE @pago_dropoff INT = 0
+
+	DECLARE @Temp2 TABLE(
+		deposito_id INT, 
+		nombre_patio VARCHAR(MAX), 
+		condicion_id INT,
+		dropoff_id INT
+	)
+
+	WHILE @P_indice < @P_total
+	BEGIN
+		
+		DECLARE @contenedor_id INT
+		DECLARE @deposito_id INT
+		DECLARE @condicion_id INT
+		DECLARE @dropoff_id INT
+
+		SELECT 
+			@contenedor_id = C.value('cnt_id[1]','INT'),
+			@deposito_id = C.value('dep_id[1]','INT')
+		FROM @Detalle_bl.nodes('/Detalle[sql:variable("@P_indice")+1]') AS T(C)
+
+		-- 3. Registrando los contenedores seleccionados
+		INSERT INTO tco.liquidacion_detalle([liquidacion_id], [doc_transporte_detalle_id], [deposito_id])
+		VALUES (@Liquidacion_id,
+			@contenedor_id,
+			@deposito_id)
+		SET @Liquidacion_detalle_id = @@IDENTITY
+
+		INSERT INTO @Temp2 (deposito_id,nombre_patio,condicion_id,dropoff_id)
+		EXEC tco.bls_liquidar_depositos_listar @contenedor_id
+
+		SELECT 
+			@condicion_id = condicion_id,
+			@dropoff_id = dropoff_id
+		FROM @Temp2
+		WHERE deposito_id = @deposito_id
+
+		IF(@condicion_id IS NOT NULL)
+		BEGIN
+			DECLARE @indicador_ilimitado INT
+			DECLARE @cupo INT
+			DECLARE @indicador_dropoff INT
+			DECLARE @cobro_adicional INT
+
+			SELECT 
+				@indicador_ilimitado = indicador_ilimitado,
+				@cupo = cupo,
+				@indicador_dropoff = indicador_dropoff,
+				@cobro_adicional = dropoff 
+			FROM tco.condicion
+			WHERE condicion_id = @condicion_id
+			
+			IF(@indicador_ilimitado = 0)
+			BEGIN
+				DECLARE @Utilizados INT
+
+				DELETE FROM @Temp
+				
+				INSERT INTO @Temp (condicion_id,contenedor_tipo,contenedor_tipo_descripcion,contenedor_tamano,contenedor_tamano_descripcion,indicador_ilimitado,cupo,indicador_dropoff,dropoff,tipo_moneda,tipo_moneda_descripcion,Usados_por_mes)
+				EXEC tco.dropoff_condicion_listar @dropoff_id
+				
+				SELECT @Utilizados = Usados_por_mes FROM @Temp WHERE condicion_id = @condicion_id
+
+				IF(@Utilizados > @cupo)
+				BEGIN
+					IF(@indicador_dropoff = 1)
+					BEGIN
+						SET @pago_dropoff = 1
+					END
+				END
+				ELSE 
+				BEGIN
+					SET @cobro_adicional = NULL
+				END
+			END
+		END
+
+		-- 4. Registro el comodato
+		INSERT INTO 
+			tco.comodato (liquidacion_detalle_id, pago_dropoff, monto_dropoff)
+		VALUES 
+			(@Liquidacion_detalle_id, @pago_dropoff, @cobro_adicional)
+
+		SET @P_indice += 1
+	END
 		
 	SET @estado = 1;
 	SET @mensaje = 'Liquidación pagada correctamente';

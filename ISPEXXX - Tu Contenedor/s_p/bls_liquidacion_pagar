@@ -1,6 +1,6 @@
 USE [Inland]
 GO
-/****** Object:  StoredProcedure [tco].[bls_liquidacion_pagar]    Script Date: 3/12/2018 10:19:05 ******/
+/****** Object:  StoredProcedure [tco].[bls_liquidacion_pagar]    Script Date: 5/12/2018 10:18:54 ******/
 SET ANSI_NULLS ON
 GO
 SET QUOTED_IDENTIFIER ON
@@ -11,6 +11,7 @@ ALTER PROC [tco].[bls_liquidacion_pagar] (
 	@Usuario_id INT,
 	@Detalle_bl xml,
 	@Detalle_factura xml,
+	@Detalle_pago xml,
 	@estado INT OUT,
 	@mensaje varchar(max) OUT
 )
@@ -31,17 +32,26 @@ BEGIN TRY
 
 	-- 2. Registrando datos de factura
 	INSERT INTO 
-		tco.factura (liquidacion_id, subtotal, ret_iva, ret_ica, ret_fuente, total_pagado, estado, usuario_registro_id)
+		tco.factura (liquidacion_id, subtotal, ret_iva, ret_ica, ret_fuente, total_pagado, unidades, estado, usuario_registro_id)
 	SELECT @Liquidacion_id,
 		C.value('subtotal[1]','int') AS subtotal,
 		C.value('iva[1]','int') AS iva,
 		C.value('ica[1]','int') AS ica,
 		C.value('fuente[1]','int') AS fuente,
 		C.value('total[1]','int') AS total,
+		C.value('unidades[1]','int') AS unidades,
 		'0',
 		@Usuario_id
 	FROM @Detalle_factura.nodes('/Factura') AS T(C)
+	DECLARE @Factura_id INT = @@IDENTITY
 
+	-- 2. Registrando datos de detalle de factura
+	INSERT INTO 
+		tco.factura_detalle (factura_id, servicio_id, monto)
+	SELECT @Factura_id,
+		C.value('servicio[1]','int') AS servicio_id,
+		C.value('total[1]','int') AS monto
+	FROM @Detalle_pago.nodes('/DetallePago') AS T(C)
 
 	DECLARE @Fecha_actual Date = GETDATE()
 
@@ -138,6 +148,9 @@ BEGIN TRY
 
 		SET @P_indice += 1
 	END
+
+	SET @estado = 1;
+	SET @mensaje = 'Liquidación pagada correctamente';
 
 END TRY
 BEGIN CATCH

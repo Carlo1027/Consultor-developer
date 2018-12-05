@@ -1,6 +1,6 @@
 USE [Inland]
 GO
-/****** Object:  StoredProcedure [tco].[cliente_obtener]    Script Date: 3/12/2018 10:22:04 ******/
+/****** Object:  StoredProcedure [tco].[cliente_obtener]    Script Date: 5/12/2018 10:10:40 ******/
 SET ANSI_NULLS ON
 GO
 SET QUOTED_IDENTIFIER ON
@@ -19,6 +19,9 @@ SET NOCOUNT ON
 		EMP.estado estado,
 		EMP.razon_social,
 		EMP.documento,
-		EMP.tipo_documento
+		EMP.tipo_documento,
+		ALI.linea_id,
+		ALI.alias
 	FROM ges.empresa EMP
+	INNER JOIN tco.empresa_alias ALI ON ALI.empresa_id = EMP.empresa_id
 	WHERE unidad_negocio_id = @Unidad_negocio_id AND EMP.empresa_id = @Empresa_id

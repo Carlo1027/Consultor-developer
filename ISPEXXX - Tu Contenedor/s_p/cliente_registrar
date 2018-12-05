@@ -1,6 +1,6 @@
 USE [Inland]
 GO
-/****** Object:  StoredProcedure [tco].[cliente_registrar]    Script Date: 3/12/2018 10:22:15 ******/
+/****** Object:  StoredProcedure [tco].[cliente_registrar]    Script Date: 5/12/2018 10:10:01 ******/
 SET ANSI_NULLS ON
 GO
 SET QUOTED_IDENTIFIER ON
@@ -11,6 +11,8 @@ ALTER PROC [tco].[cliente_registrar]
 	@Documento_identidad VARCHAR(MAX),
 	@Tipo_documento INT,
 	@Razon_social VARCHAR(MAX),
+	@Linea_id INT,
+	@Alias VARCHAR(MAX),
 	@Activo CHAR(1),
 	@estado INT OUT,
 	@mensaje varchar(max) OUT 
@@ -23,18 +25,30 @@ BEGIN TRY
 	
 	if(SELECT COUNT(*) FROM ges.empresa CLI WHERE CLI.documento=@Documento_identidad AND CLI.unidad_negocio_id=@Unidad_negocio_id AND CLI.tipo_documento=@Tipo_documento) = 0 
 	BEGIN
-		-- Registro cliente
-		INSERT INTO 
-				ges.empresa(documento, tipo_documento, razon_social, estado, unidad_negocio_id, usuario_registro_id)
-		VALUES
-				(@Documento_identidad, @Tipo_documento, @Razon_social, @Activo, @Unidad_negocio_id, @Usuario_registro_id)
-		SET @Empresa_id = @@IDENTITY
+		
+		if(SELECT COUNT(*) FROM tco.empresa_alias ALI WHERE ALI.alias=@Alias AND ALI.linea_id=@Linea_id) = 0 
+		BEGIN
+			-- Registro cliente
+			INSERT INTO 
+					ges.empresa(documento, tipo_documento, razon_social, estado, unidad_negocio_id, usuario_registro_id)
+			VALUES
+					(@Documento_identidad, @Tipo_documento, @Razon_social, @Activo, @Unidad_negocio_id, @Usuario_registro_id)
+			SET @Empresa_id = @@IDENTITY
 
-		--INSERT INTO tco.cliente (cliente_id)
-		--VALUES (@Empresa_id)
+			-- Registro Alias
+			INSERT INTO 
+					tco.empresa_alias(empresa_id, alias, linea_id)
+			VALUES
+					(@Empresa_id, @Alias, @Linea_id)
 
-		SET @estado = 1
-		SET @mensaje = 'Se registró la empresa correctamente'
+			SET @estado = 1
+			SET @mensaje = 'Se registró la empresa correctamente'
+		END
+		ELSE
+		BEGIN
+			SET @estado = 0;
+			SET @mensaje = 'Consignee Code ya se encuentra asignado a otro cliente';
+		END
 	END
 	ELSE
 	BEGIN

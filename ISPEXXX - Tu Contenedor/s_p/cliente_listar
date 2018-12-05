@@ -1,6 +1,6 @@
 USE [Inland]
 GO
-/****** Object:  StoredProcedure [tco].[cliente_listar]    Script Date: 3/12/2018 10:21:46 ******/
+/****** Object:  StoredProcedure [tco].[cliente_listar]    Script Date: 5/12/2018 10:10:55 ******/
 SET ANSI_NULLS ON
 GO
 SET QUOTED_IDENTIFIER ON
@@ -34,8 +34,10 @@ SET NOCOUNT ON
 		EMP.fecha_registro fecha_registro,
 		EMP.razon_social,
 		EMP.documento,
-		EMP.tipo_documento
+		EMP.tipo_documento,
+		ALI.alias
 	FROM ges.empresa EMP
+	INNER JOIN tco.empresa_alias ALI ON ALI.empresa_id = EMP.empresa_id
 	WHERE unidad_negocio_id = @Unidad_negocio_id AND
 		(@FechaDesde IS NULL OR (@FechaHasta IS NULL OR (EMP.fecha_registro between @fechaInicio and @fechaFin))) AND
 		(@Documento_identidad IS NULL OR (EMP.documento = @Documento_identidad)) AND
@@ -46,6 +48,7 @@ SET NOCOUNT ON
 
 	SELECT COUNT(*)
 	FROM ges.empresa EMP
+	INNER JOIN tco.empresa_alias ALI ON ALI.empresa_id = EMP.empresa_id
 	WHERE unidad_negocio_id = @Unidad_negocio_id AND
 		(@FechaDesde IS NULL OR (@FechaHasta IS NULL OR (EMP.fecha_registro between @fechaInicio and @fechaFin))) AND
 		(@Documento_identidad IS NULL OR (EMP.documento = @Documento_identidad)) AND

@@ -1,0 +1,5 @@
+Portal RRHH
+- Ficha personal
+- Buzon de quejas y reclamaciones
+
+Workflow de sanciones

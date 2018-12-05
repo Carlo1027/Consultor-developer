@@ -1,6 +1,6 @@
 USE [Inland]
 GO
-/****** Object:  StoredProcedure [tco].[cliente_editar]    Script Date: 3/12/2018 10:21:27 ******/
+/****** Object:  StoredProcedure [tco].[cliente_editar]    Script Date: 5/12/2018 10:11:15 ******/
 SET ANSI_NULLS ON
 GO
 SET QUOTED_IDENTIFIER ON
@@ -12,6 +12,8 @@ ALTER PROC [tco].[cliente_editar]
 	@Documento_identidad VARCHAR(MAX),
 	@Tipo_documento INT,
 	@Razon_social VARCHAR(MAX),
+	@Linea_id INT,
+	@Alias VARCHAR(MAX),
 	@Activo CHAR(1),
 	@estado INT OUT,
 	@mensaje varchar(max) OUT 
@@ -22,21 +24,39 @@ SET NOCOUNT ON
 BEGIN TRY
 	IF(SELECT COUNT(*) FROM ges.empresa CLI WHERE CLI.documento=@Documento_identidad AND CLI.tipo_documento=@Tipo_documento AND CLI.unidad_negocio_id=@Unidad_negocio_id AND CLI.empresa_id!=@Empresa_id) = 0 
 	BEGIN
-		-- Actualiza cliente
-		UPDATE ges.empresa
-		SET
-			documento = @Documento_identidad,
-			tipo_documento = @Tipo_documento,
-			razon_social = @Razon_social,
-			estado = @Activo,
-			unidad_negocio_id = @Unidad_negocio_id,
-			usuario_modificacion_id = @Usuario_modificacion_id,
-    		fecha_modificacion = CURRENT_TIMESTAMP
-		WHERE
-			empresa_id = @Empresa_id
+		
+		if(SELECT COUNT(*) FROM tco.empresa_alias ALI WHERE ALI.alias=@Alias AND ALI.linea_id=@Linea_id AND ALI.empresa_id != @Empresa_id) = 0 
+		BEGIN
+			-- Actualiza cliente
+			UPDATE ges.empresa
+			SET
+				documento = @Documento_identidad,
+				tipo_documento = @Tipo_documento,
+				razon_social = @Razon_social,
+				estado = @Activo,
+				unidad_negocio_id = @Unidad_negocio_id,
+				usuario_modificacion_id = @Usuario_modificacion_id,
+    			fecha_modificacion = CURRENT_TIMESTAMP
+			WHERE
+				empresa_id = @Empresa_id
+
+			-- Elimino Alias
+			DELETE FROM tco.empresa_alias WHERE empresa_id = @Empresa_id AND linea_id = @Linea_id
+
+			-- Registro Alias
+			INSERT INTO 
+					tco.empresa_alias(empresa_id, alias, linea_id)
+			VALUES
+					(@Empresa_id, @Alias, @Linea_id)
 	
-		SET @estado = 1;
-		SET @mensaje = 'Se actualizó la empresa correctamente';
+			SET @estado = 1;
+			SET @mensaje = 'Se actualizó la empresa correctamente';
+		END
+		ELSE
+		BEGIN
+			SET @estado = 0;
+			SET @mensaje = 'Consignee Code ya se encuentra asignado a otro cliente';
+		END
 	END
 	ELSE
 	BEGIN

@@ -600,3 +600,42 @@ alter table ges.faqs
    add constraint FK_FAQS_USUARIO_REGISTRO foreign key (usuario_registro_id)
       references seg.usuario (usuario_id)
 go
+
+
+/*==============================================================*/
+/* Table: termino                                               */
+/*==============================================================*/
+create table ges.termino (
+   termino_id           numeric              identity,
+   menu_id              numeric              not null,
+   unidad_negocio_id    numeric              not null,
+   version              varchar(100)         not null,
+   descripcion          TEXT                 not null,
+   estado               char(1)              not null default '1',
+   usuario_registro_id  numeric              not null,
+   fecha_registro       datetime             not null default current_timestamp,
+   usuario_modificacion_id numeric              null,
+   fecha_modificacion   datetime             null,
+   constraint PK_TERMINO primary key (termino_id)
+)
+go
+
+alter table ges.termino
+   add constraint FK_TERMINO_MENU foreign key (menu_id)
+      references seg.menu (menu_id)
+go
+
+alter table ges.termino
+   add constraint FK_TERMINO_UNIDAD_NEGOCIO foreign key (unidad_negocio_id)
+      references seg.unidad_negocio (unidad_negocio_id)
+go
+
+alter table ges.termino
+   add constraint FK_TERMINO_USUARIO_MODIFICACION foreign key (usuario_modificacion_id)
+      references seg.usuario (usuario_id)
+go
+
+alter table ges.termino
+   add constraint FK_TERMINO_USUARIO_REGISTRO foreign key (usuario_registro_id)
+      references seg.usuario (usuario_id)
+go
